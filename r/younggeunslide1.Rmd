@@ -1,0 +1,110 @@
+---
+title: "Conditional Expected Shortfall"
+subtitle: "Nonparametric Estimation"
+author: |
+  | [Young-geun Kim](mailto:dudrms33@g.skku.edu)
+  | [ygeunkim.github.io](https://ygeunkim.github.io)
+  | 2019711358, [Department of Statistics](https://stat.skku.edu/stat/index.jsp)
+date: "`r format(Sys.time(), '%d %b, %Y')`"
+output: 
+  beamer_presentation:
+    theme: "Goettingen"
+    colortheme: "dove"
+    fonttheme: "structurebold"
+knit:
+  (function(inputFile, encoding) {
+    rmarkdown::render(input = inputFile, encoding = encoding, output_dir = "../static/slides")
+  })
+header-includes:
+  - \usepackage{booktabs}
+  - \usepackage{longtable}
+  - \usepackage{array}
+  - \usepackage{multirow}
+  - \usepackage{wrapfig}
+  - \usepackage{float}
+  - \usepackage{colortbl}
+  - \usepackage{pdflscape}
+  - \usepackage{tabu}
+  - \usepackage{threeparttable}
+  - \usepackage{threeparttablex}
+  - \usepackage[normalem]{ulem}
+  - \usepackage[normalem]{ulem}
+  - \usepackage[utf8]{inputenc}
+  - \usepackage{makecell}
+  - \usepackage{xcolor}
+  - \usepackage{hyperref}
+  - \usepackage{enumitem}
+  - \usepackage[boxruled, linesnumbered]{algorithm2e}
+  - \IncMargin{1.5em}
+  - \newcommand{\iid}{\stackrel{iid}{\sim}}
+  - \newcommand{\indep}{\stackrel{indep}{\sim}}
+  - \newcommand{\hsim}{\stackrel{H_0}{\sim}}
+  - \newcommand{\ind}{\perp\!\!\!\perp}
+  - \newcommand{\R}{\mathbb{R}}
+  - \newcommand{\B}{\boldsymbol\beta}
+  - \newcommand{\hb}{\boldsymbol{\hat\beta}}
+  - \newcommand{\E}{\boldsymbol\epsilon}
+  - \newcommand{\defn}{\mathpunct{:}=}
+  - \DeclareMathOperator*{\argmin}{argmin}
+  - \DeclareMathOperator*{\argmax}{argmax}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  comment = "#>",
+  collapse = TRUE,
+  out.width = "70%",
+  fig.align = "center",
+  fig.width = 6,
+  fig.asp = .618,
+  fig.pos = "H"
+  )
+knitr::knit_hooks$set(
+  document = function(x) {
+    sub("\\usepackage[]{color}", "\\usepackage{xcolor}", x, fixed = TRUE)
+  }
+)
+options(digits = 3)
+options(kableExtra.latex.load_packages = FALSE)
+pander::panderOptions("digits", 3)
+is_latex <- knitr::opts_knit$get("rmarkdown.pandoc.to") == "latex"
+is_beamer <- knitr::opts_knit$get("rmarkdown.pandoc.to") == "beamer"
+```
+
+```{r, message=FALSE, echo=FALSE}
+# tidyverse family---------------------
+library(tidyverse)
+# custom packages----------------------
+library(rmdtool) # devtools::install_github("ygeunkim/rmdtool")
+library(goodgraphic) # devtools::install_github("ygeunkim/goodgraphic")
+# set seed for report -----------------
+set.seed(1)
+```
+
+# Expected Shortfall
+
+## Value at Risk
+
+```{r, echo=FALSE}
+tibble(
+  x = seq(-3, 3, by = .01),
+  y = dnorm(x),
+  VaR = x <= qnorm(.05)
+) %>% 
+  ggplot(aes(x = x)) +
+  geom_path(aes(y = y)) +
+  geom_ribbon(aes(ymin = 0, ymax = y, fill = VaR), show.legend = FALSE) +
+  scale_fill_manual(values = c("TRUE" = gg_hcl(1), "FALSE" = NA))
+```
+
+- Measure of loss under *normal* market conditions
+- Minimal loss under *extraordinary* market circumstances
+
+## Expected Shortfall
+
+## Conditional Expected Shortfall
+
+
+
+
+
