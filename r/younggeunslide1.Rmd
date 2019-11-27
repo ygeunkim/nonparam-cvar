@@ -6,10 +6,13 @@ author: |
   | [ygeunkim.github.io](https://ygeunkim.github.io)
   | 2019711358, [Department of Statistics](https://stat.skku.edu/stat/index.jsp)
 date: "`r format(Sys.time(), '%d %b, %Y')`"
+bibliography: "../docs/nonparam.bib"
 output: 
   beamer_presentation:
-    theme: "Goettingen"
-    colortheme: "dove"
+    toc: yes
+    slide_level: 2
+    theme: "Malmoe"
+    colortheme: "dolphin"
     fonttheme: "structurebold"
 knit:
   (function(inputFile, encoding) {
@@ -97,13 +100,271 @@ tibble(
   scale_fill_manual(values = c("TRUE" = gg_hcl(1), "FALSE" = NA))
 ```
 
+@Tsay:2010aa says that
+
 - Measure of loss under *normal* market conditions
 - Minimal loss under *extraordinary* market circumstances
 
-## Expected Shortfall
+## Value at Risk
+
+- $p$: **Right** tail probability
+- $l$: Time horizon
+- $L(l)$: loss function of the asset
+- $F$: CDF of the loss
+
+$$p = P \left[ L(l) \ge VaR \right]$$
+
+## Subadditivity
+
+### Coherent risk measure
+
+- Homogeneity
+- Monotonicity
+- Translation invariance (risk-free condition)
+- Subadditivity
+
+### VaR
+
+does not satisfy subadditivity
+
+- When two portfolios are merged, the risk measure should not be greater than the sum of each.
+- VaR *underestimates* the actual loss.
+
+## Conditional VaR
+
+- Stationary log-return $\{ Y_t \mathpunct{:} t = 1, \ldots n \}$
+- Exogenous variable $\{ X_t \mathpunct{:} t = 1, \ldots n \}$
+- Conditional VaR (CVaR) or Expected Shortfall (ES)
+
+$$\nu_p(x) = S^{-1}(p \mid x)$$
+
+where
+
+- $S (y \mid x) \defn 1 - F(y \mid x)$
+- $F$: conditional CDF of $Y_t$ given $X_t = x$.
 
 ## Conditional Expected Shortfall
 
+- We are interested in *Expected Shortfall given exogenous variable values*
+- Conditional Expected Shortfall (CES)
+
+$$\mu_p(x) = E \left[ Y_t \mid Y_t \ge \nu_p(x), X_t = x \right]$$
+
+## Formulating CES
+
+Let $B \equiv \left\{ \omega \mathpunct{:} Y_t \ge \nu_p(x) \right\} \in \mathcal{B}$. Then
+
+\begin{equation*}
+  \begin{split}
+    \mu_p(x) & = E \left[ Y_t \mid Y_t \ge \nu_p(x), X_t = x \right] \\
+    & = \frac{1}{P(B)} \int_{B} Y_t dP \\
+    & = \frac{1}{P\left( Y_t \ge \nu_p(x) \mid X_t = x \right)} \int_{\nu_p(x)}^\infty y f(y \mid x) dy \\
+    & = \frac{1}{p} \int_{\nu_p(x)}^\infty y f(y \mid x) dy
+  \end{split}
+\end{equation*}
+
+# Nonparametric Estimation
+
+## Workflow of Estimation
+
+### Plugging-in Method
+
+$$\hat\mu_p(x) = \frac{1}{p} \int_{\hat\nu_p(x)}^\infty y \hat{f}(y \mid x) dy$$
+
+### What to estimate
+
+- Conditional PDF: $\hat{f}(y \mid x)$
+- CVaR: $\hat\nu_p(x) = \hat{S}^{-1}(p \mid x)$
+
+## Conditional Disribution
+
+### Taylor expansion
+
+Consider any symmetric kernel $K_h(\cdot)$. Then
+
+\begin{equation*}
+  \begin{split}
+    E [ K_h(y - Y_t) & \mid X_t = x ] = K_h \ast f_{y \mid x} (y) \\
+    & = f(y \mid x) + \frac{h^2}{2} \mu_2(K) f^{(2)}(y \mid x) + o(h^2)
+  \end{split}
+\end{equation*}
+
+where $\mu_j(K) = \int_{\R}u^j K(u) du$.
+
+### Smoothing
+
+$$f(y \mid x) \approx E \left[ K_h(y - Y_t) \mid X_t = x \right]$$
+
+## Methods
+
+- Local Linear
+- Weighted Nadaraya Watson
+- WDKLL [@cai:2008aa]
+
+## Local Linear
+
+Denote $Y_t^{\ast}(y) \equiv K_h(y - Y_t)$.
+
+$$\hat{f}(y \mid x) = \argmin_{\alpha(x), \beta(x)} \sum_{t = 1}^n W_\lambda(x - X_t) \left[ Y_t^{\ast}(y) - \alpha(x) - \beta(x) (X_t - x) \right]^2$$
+
+Since this is involved in the two kernel ($K_h(\cdot)$, $W_\lambda(\cdot)$), @cai:2008aa names this as *double kernel*.
+
+## Local Linear Solution
+
+Note that the local linear estimate is equivalent to WLS.
+
+- $\mathbf{Y}_y^{\ast} = \left( Y_1(y), \ldots, Y_n(y) \right)^T \in \R^n$
+- $\mathbf{b}_x(x_t) \defn (1, x_t - x)^T \in \R^2$ and $\mathbf{b}_x(x) = \mathbf{e}_1 \defn (1, 0)^T$
+- $X_x \defn \left( \mathbf{b}_x(x_i)^T \right) \in \R^{n \times 2}$
+- $W_x \defn diag(W_\lambda(x - X_j)) \in \R^{n \times n}$
+
+Then $\hat{f}_{ll} = \hat\alpha$:
+
+\begin{equation*}
+  \begin{split}
+    \hat{f}_{ll}(y \mid x) & = \mathbf{e}_1^T (X_x^T W_x X_x)^{-1} X_x^T W_x \mathbf{Y}_y^{\ast} \\
+    & = \mathbf{l}(x)^T \mathbf{Y}_y^{\ast} \\
+    & \equiv \sum_{t = 1}^n l_t(x) Y_t^{\ast}(y)
+  \end{split}
+\end{equation*}
+
+## Linear Smoother
+
+$$\mathbf{l}(x)^T = \mathbf{e}_1^T (X_x^T W_x X_x)^{-1} X_x^T W_x$$
+
+By annoying arithmetic,
+
+$$l_t (x) = \frac{S_2(x) - (X_t - x) S_1(x)}{S_0(x) S_2(x) - \left[ S_1(x) \right]^2} W_\lambda(x - X_t)$$
+
+where $S_j(x) \defn \sum\limits_{t = 1}^n W_\lambda(x - X_t) (X_t - x)^j$.
+
+---
+
+### Matrix computations
+
+Let $w_t \equiv W_\lambda(x - X_t)$
+
+$$
+(X_x^T W_x X_x) = \left[\begin{array}{cc}
+  \sum_t w_t & \sum_t w_t (x_t - x) \\
+  \sum_t w_t (x_t - x) & \sum_t w_t (x_t - x)^2
+\end{array}\right] \equiv \left[\begin{array}{cc}
+  S_0 & S_1 \\
+  S_1 & S_2
+\end{array}\right]
+$$
+
+$$
+X_x^T W_x = \left[\begin{array}{ccc}
+  w_1 & \cdots & w_n \\
+  w_1 (x_1 - x) & \cdots & w_n (x_n - x)
+\end{array}\right]
+$$
+
+Thus,
+
+$$
+\mathbf{l}(x)^T = \frac{1}{S_0S_2 - S_1^2} \left[\begin{array}{ccc}
+  S_2 w_1 - S_1 w_1(x_1 - x) & \cdots & S_2 w_n - S_1 w_n(x_n - x)
+\end{array}\right]
+$$
+
+## Discrete Moments Conditions
+
+$$
+S_j(x) \defn \sum\limits_{t = 1}^n W_\lambda(x - X_t) (X_t - x)^j = \delta_{0,j} = \begin{cases}
+  1 & j = 0 \\
+  0 & \text{o/w}
+\end{cases}
+$$
+
+## CVaR
+
+Invert $\hat{F}_{ll}(y \mid x)$
+
+### Conditional CDF
+
+\begin{equation*}
+  \begin{split}
+    \hat{F}_{ll}(y \mid x) & = \int_\infty^y \hat{f}_{ll}(y \mid x) dy \\
+    & = \sum_{t = 1}^n l_t(x) G_h(y - Y_t)
+  \end{split}
+\end{equation*}
+
+where $G(\cdot)$ is the cdf of $K(\cdot)$.
+
+### Problem
+
+- It must be $\hat{F}_{ll} \in [0, 1]$ and monotone increasing
+- However, LL does not guarantee these properties.
+
+## Weighted Nadaraya Watson
+
+To get the right shape of CDF
+
+$$\hat{F}_{NW}(y \mid x)  = \sum_{t = 1}^n H_t(x, \lambda) I(Y_t \le y)$$
+
+where
+
+$$H_t(x, \lambda) = \frac{p_t(x) W_\lambda(x - X_t)}{\sum\limits_{i = 1}^n p_i(x) W_\lambda(x - X_i)}$$
+
+- $p_t(x)$ is *weighted* for each NW weight.
+- @cai2001weighted finds the best weights $\{ p_t \}_1^n$ by maximizing the *empirical likelihood*.
+
+## Choosing weights
+
+### Constraints
+
+- $p_t(x) \ge 0$
+- $\sum_t p_t(x) = 1$
+- Discrete moments conditions $\sum\limits_{t = 1}^n H_t(x, \lambda) (X_t - x)^j = \delta_{0,j}, \; 0 \le j \le 1$
+
+### Empirical likelihood
+
+Maximize $\sum_t \ln p_t(x)$. Lagrangian multiplier gives that
+
+$$p_t(x) = \frac{1}{n \left[ 1 + \gamma(X_t - x) W_\lambda(x - X_i) \right]} \ge 0$$
+
+and $\gamma(\cdot)$ uniquely maximizing the log of the empirical likelihood
+
+$$L_n(\gamma) = - \sum_{t = 1}^n \ln \left[ 1 + \gamma(X_t - x) W_\lambda(x - X_i) \right]$$
+
+## Weighted Double Kernel Local Linear
+
+- In a local linear scheme,
+- replace linear smoother with WNW weight
+
+$$\hat{f}_{cai}(y \mid x) = \sum_{t = 1}^n H_t(x, \lambda) Y_t^{\ast}(y)$$
+
+and hence,
+
+\begin{equation*}
+  \begin{split}
+    \hat{F}_{cai}(y \mid x) & = \int_\infty^y \hat{f}_{cai}(y \mid x) dy \\
+    & = \sum_{t = 1}^n H_t(x, \lambda) G_h(y - Y_t)
+  \end{split}
+\end{equation*}
+
+## Inverting and Plugging-in
+
+### CVaR
+
+$$\hat\nu_p^{(cai)}(x) = \hat{S}_{cai}^{-1}(p \mid x)$$
+
+where $\hat{S}_{cai}(y \mid x) = 1 - \hat{F}_{cai}(y \mid x)$
+
+### CES
+
+$$\hat\mu_p(x) = \frac{1}{p} \sum_{t = 1}^n H_t(x, \lambda) \left[ Y_t \bar{G}_h (\hat\nu_p(x) - Y_t) + h G_{1, h}(\hat\nu_p(x) - Y_t) \right]$$
+
+where $\bar{G}(u) = 1 - G(u)$ and $G_1(u) = \int_u^\infty  v K(v)  dv$.
+
+
+# Statistical Properties
+
+
+
+## References
 
 
 
