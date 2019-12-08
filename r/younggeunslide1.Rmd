@@ -4,7 +4,7 @@ subtitle: "Nonparametric Estimation"
 author: |
   | [Young-geun Kim](mailto:dudrms33@g.skku.edu)
   | [ygeunkim.github.io](https://ygeunkim.github.io)
-  | 2019711358, [Department of Statistics](https://stat.skku.edu/stat/index.jsp)
+institute: "2019711358, [Department of Statistics](https://stat.skku.edu/stat/index.jsp)"
 date: "`r format(Sys.time(), '%d %b, %Y')`"
 bibliography: "../docs/nonparam.bib"
 output: 
@@ -404,14 +404,14 @@ $$\sqrt{n \lambda} \left[ \hat\mu_p(c\lambda) - \mu(c\lambda) - B_{\mu, c} \righ
 
 # Simulation for Asymptotic Normality
 
-## Codes
+## Main Packages
 
 ```{r, message=FALSE}
 # devtools::install_github("ygeunkim/ceshat")
 library(ceshat)
 # devtools::install_github("ygeunkim/youngtool")
 library(youngtool)
-# GARCH modeling
+# GARCH
 library(fGarch)
 ```
 
