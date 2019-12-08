@@ -382,16 +382,27 @@ where $\bar{G}(u) = 1 - G(u)$ and $G_1(u) = \int_u^\infty  v K(v)  dv$.
 | $x$ | $x = c\lambda$ |  
 
 
-## Notations
-
-- $\alpha(K) = \int_{-\infty}^{\infty} u K(u) \bar{G}(u) du$
-- $\mu(W) = \int_{-\infty}^{\infty} u^j W(u) du$
-- $l_j(u \mid v) = E \left[ Y_t^j I(Y_t \ge u) \mid X_t = v \right]$
-- $l_j^{a,b}(u \mid v) = \frac{\partial^{ab}}{\partial u^a \partial v^b} l_j(u \mid v)$
-
 ## Interior
 
 $$\sqrt{n \lambda} \left[ \hat\mu_p(x) - \mu(x) - B_{\mu}(x) \right] \stackrel{\mathcal{D}}{\longrightarrow} N \left( 0, \sigma_{\mu}^2(x) \right)$$
+
+If some condition is added, *Bias becomes smaller*:
+
+$$\sqrt{n \lambda} \left[ \hat\mu_p(x) - \mu(x) - B_{\mu, 0}(x) \right] \stackrel{\mathcal{D}}{\longrightarrow} N \left( 0, \sigma_{\mu}^2(x) \right)$$
+
+## AMSE
+
+### Bias
+
+Note that
+
+$$\hat\mu_p(x) - \mu(x) = O_p \left( \lambda^2 + h^2 + (n\lambda)^{-\frac{1}{2}} \right)$$
+
+and hence, $\hat\mu_p(x)$ is a *consistent* with a convergent rate $\sqrt{n\lambda}$
+
+### Optimal Bandwidth
+
+$$n^{- \frac{4}{5}}$$
 
 ## Boundary
 
@@ -597,6 +608,12 @@ Use linear estimators
 - Nonparametric AIC [@cai2000application]
 - GCV?
 
+## Monte Carlo Simulation
+
+- More sophiscated design
+- Various $x$ values
+- Integrating with bandwidth selection
+
 ## Real Data
 
 @cai:2008aa used Dow Jones index with daily return defined by $y_t \defn - 100 \ln \frac{P_t}{P_{t - 1}}$
@@ -626,6 +643,21 @@ dji_return %>%
   geom_line() +
   scale_x_date() +
   ylab("Daily return")
+```
+
+
+## Related contents
+
+### Project repository
+
+[https://github.com/ygeunkim/nonparam-cvar](https://github.com/ygeunkim/nonparam-cvar)
+
+### Package repository
+
+[https://github.com/ygeunkim/ceshat](https://github.com/ygeunkim/ceshat)
+
+```{r, echo=FALSE, out.width="30%"}
+knitr::include_graphics("../docs/logo.png")
 ```
 
 
