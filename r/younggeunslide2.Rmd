@@ -1,0 +1,193 @@
+---
+title: "Conditional Expected Shortfall"
+subtitle: "Nonparametric Estimation"
+author: |
+  | [Young-geun Kim](mailto:dudrms33@g.skku.edu)
+  | [ygeunkim.github.io](https://ygeunkim.github.io)
+institute: "2019711358, [Department of Statistics](https://stat.skku.edu/stat/index.jsp)"
+date: "`r format(Sys.time(), '%d %b, %Y')`"
+bibliography: "../docs/nonparam.bib"
+output: 
+  beamer_presentation:
+    toc: yes
+    slide_level: 2
+    theme: "Malmoe"
+    colortheme: "dolphin"
+    fonttheme: "structurebold"
+knit:
+  (function(inputFile, encoding) {
+    rmarkdown::render(input = inputFile, encoding = encoding, output_dir = "../static/slides")
+  })
+header-includes:
+  - \usepackage{booktabs}
+  - \usepackage{longtable}
+  - \usepackage{array}
+  - \usepackage{multirow}
+  - \usepackage{wrapfig}
+  - \usepackage{float}
+  - \usepackage{colortbl}
+  - \usepackage{pdflscape}
+  - \usepackage{tabu}
+  - \usepackage{threeparttable}
+  - \usepackage{threeparttablex}
+  - \usepackage[normalem]{ulem}
+  - \usepackage[normalem]{ulem}
+  - \usepackage[utf8]{inputenc}
+  - \usepackage{makecell}
+  - \usepackage{xcolor}
+  - \usepackage{hyperref}
+  - \usepackage{enumitem}
+  - \usepackage[boxruled, linesnumbered]{algorithm2e}
+  - \IncMargin{1.5em}
+  - \newcommand{\iid}{\stackrel{iid}{\sim}}
+  - \newcommand{\indep}{\stackrel{indep}{\sim}}
+  - \newcommand{\hsim}{\stackrel{H_0}{\sim}}
+  - \newcommand{\ind}{\perp\!\!\!\perp}
+  - \newcommand{\R}{\mathbb{R}}
+  - \newcommand{\B}{\boldsymbol\beta}
+  - \newcommand{\hb}{\boldsymbol{\hat\beta}}
+  - \newcommand{\E}{\boldsymbol\epsilon}
+  - \newcommand{\defn}{\mathpunct{:}=}
+  - \DeclareMathOperator*{\argmin}{argmin}
+  - \DeclareMathOperator*{\argmax}{argmax}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  comment = "#>",
+  collapse = TRUE,
+  out.width = "70%",
+  fig.align = "center",
+  fig.width = 6,
+  fig.asp = .618,
+  fig.pos = "H"
+  )
+knitr::knit_hooks$set(
+  document = function(x) {
+    sub("\\usepackage[]{color}", "\\usepackage{xcolor}", x, fixed = TRUE)
+  }
+)
+options(digits = 3)
+options(kableExtra.latex.load_packages = FALSE)
+pander::panderOptions("digits", 3)
+is_latex <- knitr::opts_knit$get("rmarkdown.pandoc.to") == "latex"
+is_beamer <- knitr::opts_knit$get("rmarkdown.pandoc.to") == "beamer"
+```
+
+```{r, message=FALSE, echo=FALSE}
+# tidyverse family---------------------
+library(tidyverse)
+# large data
+library(data.table)
+# custom packages----------------------
+library(rmdtool) # devtools::install_github("ygeunkim/rmdtool")
+library(goodgraphic) # devtools::install_github("ygeunkim/goodgraphic")
+# set seed for report -----------------
+set.seed(1)
+```
+
+```{r, message=FALSE, echo=FALSE}
+# devtools::install_github("ygeunkim/ceshat")
+library(ceshat)
+# devtools::install_github("ygeunkim/youngtool")
+library(youngtool)
+# GARCH
+library(fGarch)
+```
+
+## Reviewed Paper
+
+```{r, include=FALSE, message=FALSE, warning=FALSE}
+library(RefManageR)
+bib <- ReadBib("../docs/nonparam.bib")
+Citet(bib, "cai:2008aa")
+```
+
+```{r, echo=FALSE, results='asis'}
+PrintBibliography(bib)
+```
+
+
+# Simulation
+
+## AR(1)-GARCH(1, 0)
+
+$$
+\begin{cases}
+  X_t = Y_{t - 1} \\
+  Y_t = 0.01 + 0.62 X_t + \sigma_t \epsilon_t \\
+  \sigma_t^2 = -0.15 + 0.65 \sigma_{t - 1}^2 \\
+  \epsilon_t \sim N(0, 1)
+\end{cases}
+$$
+
+
+```{r, echo=FALSE}
+garch_sim <- function(n, cond, ar_mu = .01, ar = .62) {
+  garch_spec <- 
+    garchSpec(
+      cond.dist = "norm",
+      model = list(
+        omega = .15, alpha = 0, beta = .65
+      )
+    )
+  tibble(garch = garchSim(garch_spec, n = n) %>% as.numeric()) %>% 
+    mutate(
+      x = cond,
+      y = ar_mu + ar * x + garch
+    ) %>% 
+    select(y) %>% # to use youngtool (experimental stage)
+    pull()
+}
+```
+
+## True conditional distribution
+
+Since $\epsilon_t \sim N(0, 1)$,
+
+$$\sigma_t \epsilon_t \sim N(0, \sigma_t)$$
+
+$$Y_t \mid X_t \sim N \left( 0.01 + 0.62 X_t, \sigma_t^2 \right)$$
+
+## True CES
+
+- For each $X_t$, `pnorm(x, mean, sd)` gives the conditional cdf value.
+- Inverting $S(y \mid x) = 1 - F(y \mid x)$ gives $\nu_p(x)$.
+
+$$\nu_p(x) = S^{-1}(p \mid x)$$
+
+- Plugging-in method gives $\mu_p(x)$.
+
+$$\mu_p(x) = \frac{1}{p} \int_{\nu_p(x)}^\infty y f(y \mid x) dy$$
+
+## Goal of MC Simulation
+
+- Compute the error between the true $\mu_p(x)$ and $\hat\mu_p(x)$
+- Is the estimator of @cai:2008aa good?
+
+## Random number generation
+
+Monte Carlo Samples:
+
+- For fixed $x_t$
+- Generate GARCH(1, 0): $(\sigma_t, \epsilon_t)$
+- $X_t = Y_{t - 1}$
+- AR(1): $Y_t = 0.01 + 0.62 Y_{t - 1} + \sigma_t \epsilon_t$
+
+```{r, echo=FALSE}
+cond_sim <- function(n, m, xcond) {
+  mc_data(garch_sim, N = n, M = m, cond = xcond) %>% 
+    .[,
+      xcond := xcond] %>% 
+    .[]
+}
+```
+
+```{r, echo=FALSE}
+x <- runif(1)
+mc <- cond_sim(200, 500, x)
+```
+
+## References
+
+
