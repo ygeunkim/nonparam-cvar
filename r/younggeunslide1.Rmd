@@ -86,6 +86,18 @@ library(goodgraphic) # devtools::install_github("ygeunkim/goodgraphic")
 set.seed(1)
 ```
 
+## Reviewed Paper
+
+```{r, include=FALSE, message=FALSE, warning=FALSE}
+library(RefManageR)
+bib <- ReadBib("../docs/nonparam.bib")
+Citet(bib, "cai:2008aa")
+```
+
+```{r, echo=FALSE, results='asis'}
+PrintBibliography(bib)
+```
+
 # Expected Shortfall
 
 ## Value at Risk
@@ -99,7 +111,11 @@ tibble(
   ggplot(aes(x = x)) +
   geom_path(aes(y = y)) +
   geom_ribbon(aes(ymin = 0, ymax = y, fill = VaR), show.legend = FALSE) +
-  scale_fill_manual(values = c("TRUE" = gg_hcl(1), "FALSE" = NA))
+  scale_fill_manual(values = c("TRUE" = gg_hcl(1), "FALSE" = NA)) +
+  theme(
+    text = element_blank(),
+    axis.ticks = element_blank()
+  )
 ```
 
 @Tsay:2010aa says that
@@ -154,7 +170,7 @@ $$\mu_p(x) = E \left[ Y_t \mid Y_t \ge \nu_p(x), X_t = x \right]$$
 
 ## Formulating CES
 
-Let $B \equiv \left\{ \omega \mathpunct{:} Y_t \ge \nu_p(x) \right\} \in \mathcal{B}$. Then
+Let $B \equiv \left\{ \omega \mathpunct{:} Y_t(\omega) \mid X_t = x \ge \nu_p(x) \right\} \in \mathcal{B}$. Then
 
 \begin{equation*}
   \begin{split}

@@ -4,15 +4,15 @@ subtitle: "Nonparametric Estimation"
 author: |
   | [Young-geun Kim](mailto:dudrms33@g.skku.edu)
   | [ygeunkim.github.io](https://ygeunkim.github.io)
-institute: "2019711358, [Department of Statistics](https://stat.skku.edu/stat/index.jsp)"
+institute: "[Statistics, SKKU](https://stat.skku.edu/stat/index.jsp)"
 date: "`r format(Sys.time(), '%d %b, %Y')`"
 bibliography: "../docs/nonparam.bib"
 output: 
   beamer_presentation:
     toc: yes
     slide_level: 2
-    theme: "Malmoe"
-    colortheme: "dolphin"
+    theme: "CambridgeUS"
+    colortheme: "lily"
     fonttheme: "structurebold"
 knit:
   (function(inputFile, encoding) {
@@ -36,7 +36,7 @@ header-includes:
   - \usepackage{makecell}
   - \usepackage{xcolor}
   - \usepackage{hyperref}
-  - \usepackage{enumitem}
+  # - \usepackage{enumitem}
   - \usepackage[boxruled, linesnumbered]{algorithm2e}
   - \IncMargin{1.5em}
   - \newcommand{\iid}{\stackrel{iid}{\sim}}
@@ -107,28 +107,194 @@ Citet(bib, "cai:2008aa")
 PrintBibliography(bib)
 ```
 
+### Keywords
+
+> Boundary effects, Empirical likelihood, Expected shortfall, Local linear estimation, Nonparametric smoothing, Value-at-risk, Weighted double kernel
+
+# Risk Measures
+
+## Value at Risk
+
+Given time horizon,
+
+```{r, echo=FALSE, fig.cap="Loss Distribution - Can the financial institution still be in business after a catastrophic event?"}
+tibble(
+  x = seq(-3, 3, by = .01),
+  y = dnorm(x),
+  VaR = x >= qnorm(.05)
+) %>% 
+  ggplot(aes(x = x)) +
+  geom_path(aes(y = y)) +
+  geom_ribbon(aes(ymin = 0, ymax = y, fill = VaR), show.legend = FALSE, alpha = .7) +
+  scale_fill_manual(values = c("TRUE" = gg_hcl(1), "FALSE" = NA)) +
+  theme_minimal() +
+  theme(
+    text = element_blank(),
+    axis.ticks = element_blank()
+  )
+```
+
+## Two Viewpoints
+
+@Tsay:2010aa says that
+
+- Financial institution: Maximal loss of a financial position during a given time period for a given probability
+    - Measure of loss under *normal* market conditions
+- Regulatory committe: Minimal loss under *extraordinary* market circumstances
+
+## Definition
+
+- $p$: **Right** tail probability
+- $l$: Time horizon
+- $L(l)$: loss function of the asset from $t$ to $t + l$
+- $F_l$: CDF of $L(l)$
+
+$$p = P \left[ L(l) \ge VaR \right]$$
+
+i.e. VaR can be computed by finding the $p$-th quantile.
+
+## Quantile Loss
+
+```{r, echo=FALSE, fig.cap="CDF of Loss"}
+tibble(
+  x = seq(-3, 3, length.out = 1001),
+  y = pnorm(x),
+  quant = y >= .05
+) %>% 
+  ggplot(aes(x, y, colour = quant)) +
+  geom_line(show.legend = FALSE) +
+  scale_colour_manual(values = c("TRUE" = gg_hcl(1), "FALSE" = "black")) +
+  scale_y_continuous(breaks = c(0, .05, 1)) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_blank(),
+    axis.title = element_blank()
+  )
+```
+
+$$VaR = \inf \left\{ x \mathpunct{:} F_l(x) \ge 1 - p \right\}$$
+
+## Loss function and log Returns
+
+Consider dollar $\{ P_t \}$.
+
+$$L(l) = P_{t + l} - P_t = R_{t + l} + \ldots + R_{t + 1}$$
+
+where $R_t = P_t - P_{t - 1}$ is the return series.
+
+- Loss occurs when the return $R_t$ are *negative*
+- Log returns $Y_t = \ln R_t$ corresponds *approximately to percentage changes*
+- Use *negative log returns*
+- VaR by **Upper quantile of the distribution of log return**
+
+## VaR using log Return
+
+$$\text{percentage change} \approx \ln \frac{P_{t + 1}}{P_t} = Y_{t + 1}$$
+
+From $t$ to $t + 1$,
+
+$$VaR = P_t \times VaR(Y_{t + 1})$$
+
+## Subadditivity
+
+- When two portfolios are merged, the risk measure should not be greater than the sum of each.
+- VaR *underestimates* the actual loss.
+- Thus, Expected shortfall
+
+## VaR and Expected Loss
+
+- VaR: Quantile loss of the loss distribution
+- ES: Expected value of loss function if the *VaR is exceeded*
+
+$$ES \defn E \left[ L(l) \mid L(l) \ge VaR \right]$$
+
+## Conditional information
+
+- $\{ X_t \mathpunct{:} t = 1, \ldots n \}$
+- Exogenous variable: economic, market variables
+- or *past observed returns* e.g. $\{ Y_{t - 1} \}$
+
+## Conditional VaR
+
+- Stationary log-return $\{ Y_t \mathpunct{:} t = 1, \ldots n \}$
+- Conditional information $\{ X_t \mathpunct{:} t = 1, \ldots n \}$
+- Conditional VaR (CVaR)
+
+$$\nu_p(x) = S^{-1}(p \mid x)$$
+
+where
+
+- $S (y \mid x) \defn 1 - F(y \mid x)$
+- $F$: conditional CDF of $Y_t$ given $X_t = x$.
+
+## Conditional Expected Shortfall
+
+$$\mu_p(x) = E \left[ Y_t \mid Y_t \ge \nu_p(x), \color{red}{X_t = x} \right]$$
+
+## Formulating CES
+
+Let $B \equiv \left\{ \omega \mathpunct{:} Y_t(\omega) \mid X_t = x \ge \nu_p(x) \right\} \in \mathcal{B}$. Then
+
+\begin{equation*}
+  \begin{split}
+    \mu_p(x) & = E \left[ Y_t \mid Y_t \ge \nu_p(x), X_t = x \right] \\
+    & = \frac{1}{P(B)} \int_{B} Y_t dP \\
+    & = \frac{1}{P\left( Y_t \ge \nu_p(x) \mid X_t = x \right)} \int_{\nu_p(x)}^\infty y f(y \mid x) dy \\
+    & = \frac{1}{p} \int_{\nu_p(x)}^\infty y f(y \mid x) dy
+  \end{split}
+\end{equation*}
+
+# Nonparametric Estimation
+
+## Goal
+
+### Risk measures
+
+- CVaR: $\hat\nu_p(x)$
+- CES: $\hat\mu_p(x)$
+
+## Workflow of Estimation
+
+### Plugging-in Method
+
+$$\hat\mu_p(x) = \frac{1}{p} \int_{\hat\nu_p(x)}^\infty y \hat{f}(y \mid x) dy$$
+
+### What to estimate
+
+- Conditional PDF: $\hat{f}(y \mid x)$
+- CVaR: $\hat\nu_p(x) = \hat{S}^{-1}(p \mid x)$ by inverting the conditional CDF
+
 
 # Simulation
 
 ## AR(1)-GARCH(1, 0)
 
+```{r, include=FALSE}
+ar_mu <- .01
+ar <- .62
+omega <- .15
+alp <- 0
+bet <- .65
+```
+
+
 $$
 \begin{cases}
   X_t = Y_{t - 1} \\
-  Y_t = 0.01 + 0.62 X_t + \sigma_t \epsilon_t \\
-  \sigma_t^2 = -0.15 + 0.65 \sigma_{t - 1}^2 \\
+  Y_t = `r ar_mu` + `r ar` X_t + \sigma_t \epsilon_t \\
+  \sigma_t^2 = `r omega` + `r bet` \sigma_{t - 1}^2 \\
   \epsilon_t \sim N(0, 1)
 \end{cases}
 $$
 
 
 ```{r, echo=FALSE}
-garch_sim <- function(n, cond, ar_mu = .01, ar = .62) {
+garch_sim <- function(n, cond, ar_mu = ar_mu, ar = ar) {
   garch_spec <- 
     garchSpec(
       cond.dist = "norm",
       model = list(
-        omega = .15, alpha = 0, beta = .65
+        omega = omega, alpha = alp, beta = bet
       )
     )
   tibble(garch = garchSim(garch_spec, n = n) %>% as.numeric()) %>% 
@@ -145,9 +311,9 @@ garch_sim <- function(n, cond, ar_mu = .01, ar = .62) {
 
 Since $\epsilon_t \sim N(0, 1)$,
 
-$$\sigma_t \epsilon_t \sim N(0, \sigma_t)$$
+$$\sigma_t \epsilon_t \sim N(0, \sigma_t^2)$$
 
-$$Y_t \mid X_t \sim N \left( 0.01 + 0.62 X_t, \sigma_t^2 \right)$$
+$$Y_t \mid X_t \sim N \left( `r ar_mu` + `r ar` X_t, \sigma_t^2 \right)$$
 
 ## True CES
 
@@ -169,10 +335,10 @@ $$\mu_p(x) = \frac{1}{p} \int_{\nu_p(x)}^\infty y f(y \mid x) dy$$
 
 Monte Carlo Samples:
 
-- For fixed $x_t$
-- Generate GARCH(1, 0): $(\sigma_t, \epsilon_t)$
-- $X_t = Y_{t - 1}$
-- AR(1): $Y_t = 0.01 + 0.62 Y_{t - 1} + \sigma_t \epsilon_t$
+1. For fixed $x_t$
+2. Generate GARCH(1, 0): $(\sigma_t, \epsilon_t)$
+3. Generate $Y_t$ using AR(1) for each $X_t = Y_{t - 1}$
+4. AR(1): $Y_t = 0.01 + 0.62 Y_{t - 1} + \sigma_t \epsilon_t$
 
 ```{r, echo=FALSE}
 cond_sim <- function(n, m, xcond) {
@@ -183,9 +349,38 @@ cond_sim <- function(n, m, xcond) {
 }
 ```
 
+
+# Data Analysis
+
+## Dow Jones Industrial Index
+
+@cai:2008aa used Dow Jones index with daily return defined by $y_t \defn - 100 \ln \frac{P_t}{P_{t - 1}}$
+
+```{r, message=FALSE, echo=FALSE}
+dji <-
+  read_csv("../data/dji.csv") %>%
+  select(Date, Open)
+```
+
+```{r, include=FALSE}
+dji_return <- 
+  dji %>% 
+  mutate(
+    yt = -log(Open / dplyr::lag(Open)) * 100,
+    xt = dplyr::lag(yt)
+  ) %>% 
+  dplyr::filter(
+    Date >= "1998-11-03",
+    Date <= "2006-01-03"
+  )
+```
+
 ```{r, echo=FALSE}
-x <- runif(1)
-mc <- cond_sim(200, 500, x)
+dji_return %>%
+  ggplot(aes(x = Date, y = yt)) +
+  geom_line() +
+  scale_x_date() +
+  ylab("Daily return")
 ```
 
 ## References
