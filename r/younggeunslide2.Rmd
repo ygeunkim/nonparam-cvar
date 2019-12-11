@@ -77,8 +77,10 @@ is_beamer <- knitr::opts_knit$get("rmarkdown.pandoc.to") == "beamer"
 ```{r, message=FALSE, echo=FALSE}
 # tidyverse family---------------------
 library(tidyverse)
-# large data
+# large data--------------------------
 library(data.table)
+# parallel replication----------------
+library(foreach)
 # custom packages----------------------
 library(rmdtool) # devtools::install_github("ygeunkim/rmdtool")
 library(goodgraphic) # devtools::install_github("ygeunkim/goodgraphic")
@@ -92,7 +94,7 @@ library(ceshat)
 # devtools::install_github("ygeunkim/youngtool")
 library(youngtool)
 # GARCH
-library(fGarch)
+library(rugarch)
 ```
 
 ## Reviewed Paper
@@ -270,8 +272,8 @@ $$\hat\mu_p(x) = \frac{1}{p} \int_{\hat\nu_p(x)}^\infty y \hat{f}(y \mid x) dy$$
 ## AR(1)-GARCH(1, 0)
 
 ```{r, include=FALSE}
-ar_mu <- .01
-ar <- .62
+ar0 <- .01
+ar1 <- .62
 omega <- .15
 alp <- 0
 bet <- .65
@@ -281,31 +283,12 @@ bet <- .65
 $$
 \begin{cases}
   X_t = Y_{t - 1} \\
-  Y_t = `r ar_mu` + `r ar` X_t + \sigma_t \epsilon_t \\
+  Y_t = `r ar0` + `r ar1` X_t + \sigma_t \epsilon_t \\
   \sigma_t^2 = `r omega` + `r bet` \sigma_{t - 1}^2 \\
   \epsilon_t \sim N(0, 1)
 \end{cases}
 $$
 
-
-```{r, echo=FALSE}
-garch_sim <- function(n, cond, ar_mu = ar_mu, ar = ar) {
-  garch_spec <- 
-    garchSpec(
-      cond.dist = "norm",
-      model = list(
-        omega = omega, alpha = alp, beta = bet
-      )
-    )
-  tibble(garch = garchSim(garch_spec, n = n) %>% as.numeric()) %>% 
-    mutate(
-      x = cond,
-      y = ar_mu + ar * x + garch
-    ) %>% 
-    select(y) %>% # to use youngtool (experimental stage)
-    pull()
-}
-```
 
 ## True conditional distribution
 
@@ -313,7 +296,7 @@ Since $\epsilon_t \sim N(0, 1)$,
 
 $$\sigma_t \epsilon_t \sim N(0, \sigma_t^2)$$
 
-$$Y_t \mid X_t \sim N \left( `r ar_mu` + `r ar` X_t, \sigma_t^2 \right)$$
+$$Y_t \mid X_t \sim N \left( `r ar0` + `r ar1` X_t, \sigma_t^2 \right)$$
 
 ## True CES
 
@@ -331,23 +314,155 @@ $$\mu_p(x) = \frac{1}{p} \int_{\nu_p(x)}^\infty y f(y \mid x) dy$$
 - Compute the error between the true $\mu_p(x)$ and $\hat\mu_p(x)$
 - Is the estimator of @cai:2008aa good?
 
-## Random number generation
+## Process
 
 Monte Carlo Samples:
 
-1. For fixed $x_t$
+1. For fixed $x_t$ (pre-determined grid points)
 2. Generate GARCH(1, 0): $(\sigma_t, \epsilon_t)$
 3. Generate $Y_t$ using AR(1) for each $X_t = Y_{t - 1}$
 4. AR(1): $Y_t = 0.01 + 0.62 Y_{t - 1} + \sigma_t \epsilon_t$
 
+```{r, include=FALSE}
+arch <- 
+  ugarchspec(
+    fixed.pars = c("omega" = omega, "alpha1" = alp, "beta1" = bet),
+    mean.model = list(armaOrder = c(0, 0), include.mean = FALSE)
+  )
+```
+
+
+## Monte Carlo Samples
+
+```{r, include=FALSE}
+N <- 100
+M <- 20
+xcond <- seq_len(N) / (2 * N)
+mc <- 
+  lapply(
+    1:M,
+    function(i) {
+      X <- ugarchpath(arch, n.sim = N)@path
+      X <- do.call("cbind", X)[,-3]
+      colnames(X) <- c("sigma", "garch")
+      X %>% 
+        data.table() %>% 
+        .[,
+          mc := paste0("s", i)]
+    }
+  ) %>% 
+  rbindlist() %>% 
+  .[,
+    xt := xcond,
+    by = mc] %>% 
+  .[,
+    yt := ar0 + ar1 * xt + garch]
+```
+
+
 ```{r, echo=FALSE}
-cond_sim <- function(n, m, xcond) {
-  mc_data(garch_sim, N = n, M = m, cond = xcond) %>% 
+mc[]
+```
+
+## MC
+
+```{r, echo=FALSE}
+sig <- unique(mc$sigma)
+mc %>% 
+  .[,
+    true_ces := plugin_ces(
+      pdf = function(y, x) dnorm(y, mean = ar0 + ar1 * x, sd = sig),
+      cdf = function(y, x) pnorm(y, mean = ar0 + ar1 * x, sd = sig),
+      x = xt,
+      lower = -1,
+      upper = 1
+    )] %>% 
+  .[,
+    true_cvar := invert_cvar(
+      cdf = function(y, x) pnorm(y, mean = ar0 + ar1 * x, sd = sig),
+      x = xt
+    )]
+#---------------------------
+N0 <- 20
+x <- ugarchpath(arch, n.sim = N0)@path
+x <- do.call("cbind", x)[, -3]
+colnames(x) <- c("sigma", "garch")
+mc_test <- 
+  x %>% 
+  data.table() %>% 
+  .[,
+    xt := seq_len(N0) / (2 * N0) + .5] %>% 
+  .[,
+    yt := ar0 + ar1 * xt + garch] %>% 
+  .[,
+    true_ces := plugin_ces(
+      pdf = function(y, x) dnorm(y, mean = ar0 + ar1 * x, sd = sig),
+      cdf = function(y, x) pnorm(y, mean = ar0 + ar1 * x, sd = sig),
+      x = xt,
+      lower = -1,
+      upper = 1
+    )] %>% 
+  .[,
+    true_cvar := invert_cvar(
+      cdf = function(y, x) pnorm(y, mean = ar0 + ar1 * x, sd = sig),
+      x = xt
+    )]
+```
+
+
+```{r, include=FALSE}
+test_err <- function(band) {
+  mc %>% 
     .[,
-      xcond := xcond] %>% 
-    .[]
+      .(pred = wdkll_ces(yt ~ xt, data = .SD, nw_h = band, h0 = band / 10) %>% 
+          predict(mc_test$xt),
+        ces = mc_test$true_ces),
+      by = mc] %>% 
+    .[,
+      abs_err := abs(ces - pred)] %>% 
+    .[,
+      .(abs_err = mean(abs_err)),
+      by = mc]
 }
 ```
+
+
+```{r, include=FALSE}
+cl <- parallel::makeCluster(3)
+doParallel::registerDoParallel(cl, cores = 3)
+parallel::clusterEvalQ(cl, c(library(data.table), library(magrittr), library(ceshat)))
+```
+
+```{r, include=FALSE, cache=TRUE}
+err_tab <- 
+  foreach(h = c(.5, 1, 2), .combine = cbind, .inorder = FALSE) %dopar% {
+    test_err(band = h)[, abs_err]
+  }
+```
+
+
+```{r, include=FALSE}
+parallel::stopCluster(cl)
+```
+
+```{r, echo=FALSE}
+err_tab %>% 
+  as.data.frame() %>% 
+  mutate(mc = paste0("s", 1:n())) %>% 
+  pivot_longer(
+    -mc, 
+    names_to = "bandwidth",
+    names_pattern = "result\\.?(.)"
+  ) %>% 
+  mutate(
+    bandwidth = parse_integer(bandwidth)
+  ) %>% 
+  ggplot(aes(x = bandwidth, y = value, group = bandwidth)) +
+  geom_boxplot()
+```
+
+
+
 
 
 # Data Analysis
