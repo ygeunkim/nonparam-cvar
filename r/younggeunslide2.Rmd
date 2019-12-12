@@ -185,17 +185,39 @@ $$L(l) = P_{t + l} - P_t = R_{t + l} + \ldots + R_{t + 1}$$
 where $R_t = P_t - P_{t - 1}$ is the return series.
 
 - Loss occurs when the return $R_t$ are *negative*
-- Log returns $Y_t = \ln R_t$ corresponds *approximately to percentage changes*
+- Use *negative returns*
+
+## log Returns
+
+### Taylor expansion
+
+For any $x_0 > 0$,
+
+$$\ln x \approx \ln x_0 + \frac{1}{x_0}(x - x_0)$$
+
+Write $x = x_2$, $x_0 = x_1$. Then
+
+$$\ln \frac{x_2}{x_1} \approx \frac{x_2}{x_1} - 1 = \frac{x_2 - x_1}{x_1}$$
+
+### Percentage change
+
+- Log returns $Y_t = \ln R_t$ correspond *approximately to percentage changes*
 - Use *negative log returns*
 - VaR by **Upper quantile of the distribution of log return**
 
 ## VaR using log Return
 
-$$\text{percentage change} \approx \ln \frac{P_{t + 1}}{P_t} = Y_{t + 1}$$
+### log return
+
+@cai:2008aa used the following value in a real example part.
+
+$$-100 Y_{t + 1} = -100 \ln \frac{P_{t + 1}}{P_t} \approx \text{percentage loss}$$
+
+### Dollar amount of VaR
 
 From $t$ to $t + 1$,
 
-$$VaR = P_t \times VaR(Y_{t + 1})$$
+$$VaR = P_t \times VaR(-100 Y_{t + 1})$$
 
 ## Subadditivity
 
@@ -231,16 +253,9 @@ where
 
 ## Conditional Expected Shortfall
 
-$$\mu_p(x) = E \left[ Y_t \mid Y_t \ge \nu_p(x), \color{red}{X_t = x} \right]$$
-
-## Formulating CES
-
-Let $B \equiv \left\{ \omega \mathpunct{:} Y_t(\omega) \mid X_t = x \ge \nu_p(x) \right\} \in \mathcal{B}$. Then
-
 \begin{equation*}
   \begin{split}
-    \mu_p(x) & = E \left[ Y_t \mid Y_t \ge \nu_p(x), X_t = x \right] \\
-    & = \frac{1}{P(B)} \int_{B} Y_t dP \\
+    \mu_p(x) & = E \left[ Y_t \mid Y_t \ge \nu_p(x), \color{red}{X_t = x} \right] \\
     & = \frac{1}{P\left( Y_t \ge \nu_p(x) \mid X_t = x \right)} \int_{\nu_p(x)}^\infty y f(y \mid x) dy \\
     & = \frac{1}{p} \int_{\nu_p(x)}^\infty y f(y \mid x) dy
   \end{split}
@@ -266,6 +281,7 @@ $$\hat\mu_p(x) = \frac{1}{p} \int_{\hat\nu_p(x)}^\infty y \hat{f}(y \mid x) dy$$
 - Conditional PDF: $\hat{f}(y \mid x)$
 - CVaR: $\hat\nu_p(x) = \hat{S}^{-1}(p \mid x)$ by inverting the conditional CDF
 
+## Weighted Double Kernel Local Linear
 
 # Simulation
 
@@ -467,36 +483,98 @@ err_tab %>%
 
 # Data Analysis
 
-## Dow Jones Industrial Index
+## Netflix Stock
 
-@cai:2008aa used Dow Jones index with daily return defined by $y_t \defn - 100 \ln \frac{P_t}{P_{t - 1}}$
+<!-- ```{r, message=FALSE, echo=FALSE} -->
+<!-- dji <- -->
+<!--   read_csv("../data/dji.csv") %>% -->
+<!--   select(Date, price = Close) -->
+<!-- ``` -->
+
+<!-- ```{r, include=FALSE} -->
+<!-- dji_return <-  -->
+<!--   dji %>%  -->
+<!--   mutate( -->
+<!--     yt = -log(price / dplyr::lag(price)) * 100, -->
+<!--     xt = dplyr::lag(yt) -->
+<!--   ) %>%  -->
+<!--   dplyr::filter( -->
+<!--     Date >= "1998-11-03", -->
+<!--     Date <= "2006-01-03" -->
+<!--   ) -->
+<!-- ``` -->
+
+<!-- ```{r, echo=FALSE} -->
+<!-- dji_return %>% -->
+<!--   ggplot(aes(x = Date, y = yt)) + -->
+<!--   geom_line() + -->
+<!--   scale_x_date() + -->
+<!--   ylab("Daily return") + -->
+<!--   theme_minimal() -->
+<!-- ``` -->
 
 ```{r, message=FALSE, echo=FALSE}
-dji <-
-  read_csv("../data/dji.csv") %>%
-  select(Date, Open)
+nflx <-
+  read_csv("../data/NFLX.csv") %>%
+  select(Date, price = Close)
 ```
 
-```{r, include=FALSE}
-dji_return <- 
-  dji %>% 
+```{r, echo=FALSE}
+nflx %>% 
+  ggplot(aes(Date, price)) +
+  geom_line() +
+  scale_x_date() +
+  ylab("Price") +
+  theme_minimal()
+```
+
+## Daily Return
+
+As mentioned, @cai:2008aa used daily return defined by $y_t \defn - 100 \ln \frac{P_t}{P_{t - 1}}$
+
+```{r, echo=FALSE}
+nflx_return <- 
+  nflx %>% 
   mutate(
-    yt = -log(Open / dplyr::lag(Open)) * 100,
+    yt = -log(price / dplyr::lag(price)) * 100,
     xt = dplyr::lag(yt)
   ) %>% 
   dplyr::filter(
-    Date >= "1998-11-03",
-    Date <= "2006-01-03"
+    Date >= "2018-12-01",
+    Date < "2019-12-01"
   )
 ```
 
 ```{r, echo=FALSE}
-dji_return %>%
+nflx_return %>%
   ggplot(aes(x = Date, y = yt)) +
   geom_line() +
   scale_x_date() +
-  ylab("Daily return")
+  ylab("Daily return") +
+  theme_minimal()
 ```
+
+## CES for DJI
+
+```{r, echo=FALSE}
+nflx_ces <- wdkll_ces(yt ~ xt, data = nflx_return, nw_h = 1, h0 = .1, lower_invert = -5, upper_invert = 5)
+```
+
+```{r, echo=FALSE, cache=TRUE}
+tibble(x = seq(-1.5, 1.5, by = .1)) %>% 
+  mutate(CES = predict(nflx_ces, x)) %>% 
+  ggplot(aes(x, CES)) +
+  geom_point() +
+  theme_minimal()
+```
+
+## Interpretation
+
+Following @cai:2008aa,
+
+- Risk tends to be lower when *lagged log loss* is close to the emprirical average
+- Netflix stock price is more likely to fall *if there were a positive return* within the last day than if there was a same amount of negative return.
+
 
 ## References
 
