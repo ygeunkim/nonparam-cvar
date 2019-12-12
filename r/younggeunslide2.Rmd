@@ -347,6 +347,12 @@ arch <-
   )
 ```
 
+## Expected Prediction Error
+
+```{r, echo=FALSE, fig.cap="Simulating Expected prediction error"}
+knitr::include_graphics("../docs/mc_epe.png")
+```
+
 
 ## Monte Carlo Samples
 
@@ -380,7 +386,7 @@ mc <-
 mc[]
 ```
 
-## MC
+## Numerical Results
 
 ```{r, echo=FALSE}
 sig <- unique(mc$sigma)
@@ -399,7 +405,7 @@ mc %>%
       x = xt
     )]
 #---------------------------
-N0 <- 20
+N0 <- 200
 x <- ugarchpath(arch, n.sim = N0)@path
 x <- do.call("cbind", x)[, -3]
 colnames(x) <- c("sigma", "garch")
@@ -443,21 +449,16 @@ test_err <- function(band) {
 ```
 
 
-```{r, include=FALSE}
+```{r, include=FALSE, cache=TRUE}
 cl <- parallel::makeCluster(3)
 doParallel::registerDoParallel(cl, cores = 3)
 parallel::clusterEvalQ(cl, c(library(data.table), library(magrittr), library(ceshat)))
-```
-
-```{r, include=FALSE, cache=TRUE}
+#--------------------------------
 err_tab <- 
-  foreach(h = c(.5, 1, 2), .combine = cbind, .inorder = FALSE) %dopar% {
+  foreach(h = c(.5, 1, 5), .combine = cbind, .inorder = FALSE) %dopar% {
     test_err(band = h)[, abs_err]
   }
-```
-
-
-```{r, include=FALSE}
+#--------------------------------
 parallel::stopCluster(cl)
 ```
 
@@ -483,7 +484,7 @@ err_tab %>%
 
 # Data Analysis
 
-## Netflix Stock
+## Bitcoin
 
 <!-- ```{r, message=FALSE, echo=FALSE} -->
 <!-- dji <- -->
@@ -513,14 +514,30 @@ err_tab %>%
 <!--   theme_minimal() -->
 <!-- ``` -->
 
+<!-- ```{r, message=FALSE, echo=FALSE} -->
+<!-- nflx <- -->
+<!--   read_csv("../data/NFLX.csv") %>% -->
+<!--   select(Date, price = Close) -->
+<!-- ``` -->
+
+<!-- ```{r, echo=FALSE} -->
+<!-- nflx %>%  -->
+<!--   ggplot(aes(Date, price)) + -->
+<!--   geom_line() + -->
+<!--   scale_x_date() + -->
+<!--   ylab("Price") + -->
+<!--   theme_minimal() -->
+<!-- ``` -->
+
+
 ```{r, message=FALSE, echo=FALSE}
-nflx <-
-  read_csv("../data/NFLX.csv") %>%
-  select(Date, price = Close)
+coin <-
+  read_csv("../data/btc.csv") %>%
+  select(Date, price = `24h Open (USD)`)
 ```
 
-```{r, echo=FALSE}
-nflx %>% 
+```{r, echo=FALSE, fig.cap="Bitcoin price in USD"}
+coin %>% 
   ggplot(aes(Date, price)) +
   geom_line() +
   scale_x_date() +
@@ -532,21 +549,43 @@ nflx %>%
 
 As mentioned, @cai:2008aa used daily return defined by $y_t \defn - 100 \ln \frac{P_t}{P_{t - 1}}$
 
+<!-- ```{r, echo=FALSE} -->
+<!-- nflx_return <-  -->
+<!--   nflx %>%  -->
+<!--   mutate( -->
+<!--     yt = -log(price / dplyr::lag(price)) * 100, -->
+<!--     xt = dplyr::lag(yt) -->
+<!--   ) %>%  -->
+<!--   dplyr::filter( -->
+<!--     Date >= "2018-12-01", -->
+<!--     Date < "2019-12-01" -->
+<!--   ) -->
+<!-- ``` -->
+
+<!-- ```{r, echo=FALSE} -->
+<!-- nflx_return %>% -->
+<!--   ggplot(aes(x = Date, y = yt)) + -->
+<!--   geom_line() + -->
+<!--   scale_x_date() + -->
+<!--   ylab("Daily return") + -->
+<!--   theme_minimal() -->
+<!-- ``` -->
+
 ```{r, echo=FALSE}
-nflx_return <- 
-  nflx %>% 
+coin_return <- 
+  coin %>% 
   mutate(
     yt = -log(price / dplyr::lag(price)) * 100,
     xt = dplyr::lag(yt)
   ) %>% 
   dplyr::filter(
-    Date >= "2018-12-01",
+    Date >= "2018-06-01",
     Date < "2019-12-01"
   )
 ```
 
-```{r, echo=FALSE}
-nflx_return %>%
+```{r, echo=FALSE, fig.cap="Daily return of bitcoin price"}
+coin_return %>%
   ggplot(aes(x = Date, y = yt)) +
   geom_line() +
   scale_x_date() +
@@ -556,24 +595,57 @@ nflx_return %>%
 
 ## CES for DJI
 
+<!-- ```{r, echo=FALSE} -->
+<!-- nflx_ces <- wdkll_ces(yt ~ xt, data = nflx_return, nw_h = 1, h0 = .1, lower_invert = -5, upper_invert = 5) -->
+<!-- ``` -->
+
+<!-- ```{r, echo=FALSE, cache=TRUE} -->
+<!-- tibble(x = seq(-1.5, 1.5, by = .1)) %>%  -->
+<!--   mutate(CES = predict(nflx_ces, x)) %>%  -->
+<!--   ggplot(aes(x, CES)) + -->
+<!--   geom_point() + -->
+<!--   theme_minimal() -->
+<!-- ``` -->
+
 ```{r, echo=FALSE}
-nflx_ces <- wdkll_ces(yt ~ xt, data = nflx_return, nw_h = 1, h0 = .1, lower_invert = -5, upper_invert = 5)
+coin_ces <- wdkll_ces(yt ~ xt, data = coin_return, nw_h = 1, h0 = .1, lower_invert = -5, upper_invert = 5)
 ```
 
-```{r, echo=FALSE, cache=TRUE}
-tibble(x = seq(-1.5, 1.5, by = .1)) %>% 
-  mutate(CES = predict(nflx_ces, x)) %>% 
+### Volatility smile
+
+```{r, echo=FALSE, cache=TRUE, fig.cap="Conditional Expected Shortfall given each lagged variable value"}
+coin_pred <- 
+  tibble(x = seq(-1.5, 1.5, by = .1)) %>% 
+  mutate(CES = predict(coin_ces, x))
+#----------------------------------------
+(smile <- 
+  coin_pred %>% 
   ggplot(aes(x, CES)) +
-  geom_point() +
-  theme_minimal()
+  geom_path() +
+  theme_minimal())
 ```
 
 ## Interpretation
 
 Following @cai:2008aa,
 
-- Risk tends to be lower when *lagged log loss* is close to the emprirical average
-- Netflix stock price is more likely to fall *if there were a positive return* within the last day than if there was a same amount of negative return.
+- Risk tends to be lower when *lagged log loss* is close to the emprirical average,
+- and larger otherwise
+- Bitcoin price is more likely to fall *if there were a loss* within the last day than if there was a same amount of positive return.
+
+```{r, echo=FALSE, out.width="50%"}
+ymin <- coin_pred %>% summarise(min(CES)) %>% pull()
+y1neg <- coin_pred %>% filter(x == -1) %>% select(CES) %>% pull()
+y1 <- coin_pred %>% filter(x == 1) %>% select(CES) %>% pull()
+#---------------------------------------------------
+smile +
+  annotate("segment", x = -.5, xend = -1.5, y = .5, yend = .6, arrow = arrow(length = unit(.03, "npc")), col = gg_hcl(1)) +
+  annotate("text", x = -1, y = .6 - .01, label = "price more likely to fall if loss", col = "red") +
+  annotate("segment", x = -1, xend = -1, y = ymin, yend = y1neg, col = gg_hcl(2)[2]) +
+  annotate("segment", x = 1, xend = 1, y = ymin, yend = y1, col = gg_hcl(2)[2]) +
+  annotate("segment", x = -1, xend = -1.5, y = y1neg, yend = y1neg, col = gg_hcl(2)[2]) +
+  annotate("segment", x = 1, xend = -1.5, y = y1, yend = y1, col = gg_hcl(2)[2])
+```
 
 
 ## References
