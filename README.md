@@ -11,7 +11,7 @@ at:
   - development of new statistical methodology related to the course
   - new analysis of a real data set
 
-## Review
+## Overview
 
 I reviewed
 
@@ -29,5 +29,6 @@ There will be two presentations and one report.
 
 1.  [Brief
     slide](https://github.com/ygeunkim/nonparam-cvar/blob/master/static/slides/younggeunslide1.pdf)
-2.  Second slide: incompletion
-3.  Report: incompletion
+2.  [Final presentation slide: working
+    on](https://github.com/ygeunkim/nonparam-cvar/blob/master/static/slides/younggeunslide2.pdf)
+3.  Report
