@@ -7,6 +7,8 @@ author: |
 institute: "[Statistics, SKKU](https://stat.skku.edu/stat/index.jsp)"
 date: "`r format(Sys.time(), '%d %b, %Y')`"
 bibliography: "../docs/nonparam.bib"
+biblio-style: "apalike"
+link-citations: true
 output: 
   beamer_presentation:
     toc: yes
@@ -99,19 +101,25 @@ library(rugarch)
 
 ## Reviewed Paper
 
-```{r, include=FALSE, message=FALSE, warning=FALSE}
-library(RefManageR)
-bib <- ReadBib("../docs/nonparam.bib")
-Citet(bib, "cai:2008aa")
-```
+<!-- ```{r, include=FALSE, message=FALSE, warning=FALSE} -->
+<!-- library(RefManageR) -->
+<!-- bib <- ReadBib("../docs/nonparam.bib") -->
+<!-- Citet(bib, "cai:2008aa") -->
+<!-- ``` -->
 
-```{r, echo=FALSE, results='asis'}
-PrintBibliography(bib)
-```
+<!-- ```{r, echo=FALSE, results='asis'} -->
+<!-- PrintBibliography(bib) -->
+<!-- ``` -->
 
-### Keywords
+[**Cai, Z., & Wang, X. (2008). Nonparametric estimation of conditional VaR and expected shortfall. Journal of Econometrics, 147(1), 120-130.**](https://www.sciencedirect.com/science/article/abs/pii/S0304407608001292)
 
-> Boundary effects, Empirical likelihood, Expected shortfall, Local linear estimation, Nonparametric smoothing, Value-at-risk, Weighted double kernel
+### Abstract
+
+> ... a new nonparametric estimation of conditional value-at-risk and expected shortfall functions. Conditional value-at-risk is estimated by inverting the weighted double kernel local linear estimate of the conditional distribution function. The nonparametric estimator of conditional expected shortfall is constructed by a plugging-in method. Both the asymptotic normality and consistency of the proposed nonparametric estimators are established at both boundary and interior points for time series data. ...
+
+<!-- ### Keywords -->
+
+<!-- > Boundary effects, Empirical likelihood, Expected shortfall, Local linear estimation, Nonparametric smoothing, Value-at-risk, Weighted double kernel -->
 
 # Risk Measures
 
