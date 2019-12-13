@@ -536,7 +536,7 @@ coin <-
   select(Date, price = `24h Open (USD)`)
 ```
 
-```{r, echo=FALSE, fig.cap="Bitcoin price in USD"}
+```{r, echo=FALSE, fig.cap="Bitcoin price in USD", cache=TRUE}
 coin %>% 
   ggplot(aes(Date, price)) +
   geom_line() +
@@ -611,8 +611,6 @@ coin_return %>%
 coin_ces <- wdkll_ces(yt ~ xt, data = coin_return, nw_h = 1, h0 = .1, lower_invert = -5, upper_invert = 5)
 ```
 
-### Volatility smile
-
 ```{r, echo=FALSE, cache=TRUE, fig.cap="Conditional Expected Shortfall given each lagged variable value"}
 coin_pred <- 
   tibble(x = seq(-1.5, 1.5, by = .1)) %>% 
@@ -625,6 +623,9 @@ coin_pred <-
   theme_minimal())
 ```
 
+- Volatility smile
+- Conditional information `x`: positive $y_{t - 1}$ means loss
+
 ## Interpretation
 
 Following @cai:2008aa,
@@ -633,14 +634,15 @@ Following @cai:2008aa,
 - and larger otherwise
 - Bitcoin price is more likely to fall *if there were a loss* within the last day than if there was a same amount of positive return.
 
-```{r, echo=FALSE, out.width="50%"}
+```{r, echo=FALSE, cache=TRUE, out.width="50%"}
 ymin <- coin_pred %>% summarise(min(CES)) %>% pull()
+ymax <- coin_pred %>% summarise(max(CES)) %>% pull()
 y1neg <- coin_pred %>% filter(x == -1) %>% select(CES) %>% pull()
 y1 <- coin_pred %>% filter(x == 1) %>% select(CES) %>% pull()
 #---------------------------------------------------
 smile +
-  annotate("segment", x = -.5, xend = -1.5, y = .5, yend = .6, arrow = arrow(length = unit(.03, "npc")), col = gg_hcl(1)) +
-  annotate("text", x = -1, y = .6 - .01, label = "price more likely to fall if loss", col = "red") +
+  annotate("segment", x = 0, xend = 1.5, y = .5, yend = ymax - .1, arrow = arrow(length = unit(.03, "npc")), col = gg_hcl(1)) +
+  annotate("text", x = .5, y = .6, label = "price more likely to fall if loss", col = "red") +
   annotate("segment", x = -1, xend = -1, y = ymin, yend = y1neg, col = gg_hcl(2)[2]) +
   annotate("segment", x = 1, xend = 1, y = ymin, yend = y1, col = gg_hcl(2)[2]) +
   annotate("segment", x = -1, xend = -1.5, y = y1neg, yend = y1neg, col = gg_hcl(2)[2]) +
