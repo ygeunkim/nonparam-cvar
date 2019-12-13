@@ -281,7 +281,139 @@ $$\hat\mu_p(x) = \frac{1}{p} \int_{\hat\nu_p(x)}^\infty y \hat{f}(y \mid x) dy$$
 - Conditional PDF: $\hat{f}(y \mid x)$
 - CVaR: $\hat\nu_p(x) = \hat{S}^{-1}(p \mid x)$ by inverting the conditional CDF
 
+## Weighted Kerel
+
+To make $\hat{F}(y \mid x)$ satisfy its interval $[0, 1]$, Weighted Nadaraya Watson scheme [@cai2001weighted] is introduced.
+
+### Weight
+
+$$W_{c,t}(x, h) = \frac{p_t(x) W_h (x - X_t)}{\sum\limits_{i = 1}^n p_i(x) W_h (x - X_i)}$$
+
+### Weights of kernel
+
+$$p_t(x) = \frac{1}{n \left[ 1 + \lambda(X_t - x) W_h (x - X_i) \right]} \ge 0$$
+
+Find $\lambda$ which maximizes the log of the empirical likelihood,
+
+$$L_n(\lambda) = - \sum_{t = 1}^n \ln \left[ 1 + \lambda(X_t - x) W_h(x - X_i) \right]$$
+
+## Newton-Raphson
+
+### First order derivative
+
+$$L_n^{\prime}(\lambda) = \sum_{t= 1}^n \frac{(X_t - x) W_h(x - X_i)}{1 + \lambda(X_t - x) W_h(x - X_i)}$$
+
+### Second order derivative
+
+$$L_n^{\prime\prime}(\lambda) = -\sum_{t = 1}^n \frac{\left\{ (X_t - x) W_h(x - X_i) \right\}^2}{\left( 1 + \lambda(X_t - x) W_h(x - X_i) \right)^2} = - L_n^{\prime}(\lambda)^2$$
+
+---
+
+\begin{algorithm}[H]
+  \SetAlgoLined
+  \SetKwInOut{Input}{input}
+  \SetKwInOut{Output}{output}
+  \Input{empirical log-likelihood, first and second order derivative}
+  Initialize $\hat\lambda_{old}$\;
+  \While{$\lvert \hat\lambda_{old} - \hat\lambda_{new} \rvert > \epsilon$}{
+    Update $\lambda$ by $$\hat\lambda_{new} = \hat\lambda_{old} - \frac{L_n^{\prime}(\hat\lambda_{old})}{L_n^{\prime\prime}(\hat\lambda_{old})}$$
+  }
+  \Output{$\hat\lambda_{new}$}
+  \label{alg:lambdanewton}
+  \caption{Newton-Raphson method finding lambda}
+\end{algorithm}
+
 ## Weighted Double Kernel Local Linear
+
+Combining Double Kernel Local Liear [@cai:2008aa] and WNW [@cai2001weighted],
+
+### Conditional pdf
+
+$$\hat{f}_{cai}(y \mid x) = \sum_{t = 1}^n W_{c,t}(x, h) Y_t^{\ast}(y)$$
+
+where initial estimate $Y_t^{\ast}(y) = K_{h_0} (y - Y_t)$ with symmetric kernel $K_{h_0}$.
+
+### Conditional cdf
+
+$$\hat{F}_{cai}(y \mid x) = \sum_{t = 1}^n W_{c,t}(x, h) G_{h_0}(y - Y_t)$$
+
+where $G_{h_0}$ is the cdf of $K_{h_0}$, i.e.
+
+$$G_{h_0}(y - Y_t) = \int_{-\infty}^y K_{h_0} (y - Y_t) dy$$
+
+## WDKLL of CVaR
+
+$$\hat{S}_{cai}(y \mid x) = 1 - \hat{F}_{cai}(y \mid x)$$
+
+and **invert it**
+
+$$\hat\nu_p^{(cai)}(x) = \hat{S}_{cai}^{-1}(p \mid x)$$
+
+### Inverting method
+
+Goal: find `y` value that has `1 - p` as cdf value.
+
+1. Make grid of `y`
+2. Make cdf value for each `y`
+3. Take every value that is equal or larger than `1 - p`
+4. Take minimum among them
+
+## WDKLL of CES
+
+**Plug-in** the previous results
+
+$$\hat\mu_p(x) = \frac{1}{p} \sum_{t = 1}^n W_{c,t}(x, h) \left[ Y_t \bar{G}_{h_0} (\hat\nu_p(x) - Y_t) + h G_{1, h_0}(\hat\nu_p(x) - Y_t) \right]$$
+
+where $\bar{G}(u) = 1 - G(u)$ and $G_1(u) = \int_u^\infty  v K(v)  dv$.
+
+## Asymptotic Normality
+
+### Bias of
+
+- $\hat{f}_{cai} (y \mid x)$
+- $\hat{S}_{cai} (y \mid x) = 1 - \hat{F}_{cai}(y \mid x)$
+- $\hat\nu_p(x)$
+- $\hat\mu_p(x)$
+
+### at both
+
+| Interior | Boundary |  
+|:--------:|:--------:|  
+| $x$ | $x = ch$ |  
+
+## AMSE
+
+### Bias
+
+Note that
+
+$$\hat\mu_p(x) - \mu(x) = O_p \left( h^2 + h_0^2 + (nh)^{-\frac{1}{2}} \right)$$
+
+and hence, $\hat\mu_p(x)$ is a *consistent* with a convergent rate $\sqrt{nh}$
+
+### Optimal Bandwidth
+
+$$n^{- \frac{4}{5}}$$
+
+## Bandwidth Selection
+
+### Criterion
+
+- Nonparametric AIC [@cai2000application]
+
+### Two bandwidths
+
+- Initial bandwidth $h$: insensitive to the final estimation
+- WNW bandwith $\lambda$
+
+### Strategy
+
+Use linear estimators
+
+- WNW estimator: select one $\tilde{h}$
+    - $h \le 0.1 \tilde{h}$: take small initial bandwidth
+- Given $h$
+    - Use $\hat{F}_{cai}$
 
 # Simulation
 
