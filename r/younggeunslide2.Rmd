@@ -733,7 +733,7 @@ coin_return %>%
   theme_minimal()
 ```
 
-## CES for DJI
+## Risk of Bitcoin
 
 <!-- ```{r, echo=FALSE} -->
 <!-- nflx_ces <- wdkll_ces(yt ~ xt, data = nflx_return, nw_h = 1, h0 = .1, lower_invert = -5, upper_invert = 5) -->
@@ -789,6 +789,40 @@ smile +
   annotate("segment", x = 1, xend = -1.5, y = y1, yend = y1, col = gg_hcl(2)[2])
 ```
 
+# Future Study
+
+## Computation
+
+### Newton raphson
+
+- Replace `for` loop with [`Rcpp`](http://www.rcpp.org): Integrating `R` with `C++`
+- Change to `C++` function:
+   - Kernel
+   - Empirical log likelihood
+   - Newton-raphson
+
+### Computation order
+
+- Where do we find the weight?
+- Where do we compute WNW kernel?
+- etc.
+
+
+## Related contents
+
+### Project repository
+
+- Source code for this slide
+- [https://github.com/ygeunkim/nonparam-cvar](https://github.com/ygeunkim/nonparam-cvar)
+
+### Package repository
+
+- Codes to reproduce the paper
+- [https://github.com/ygeunkim/ceshat](https://github.com/ygeunkim/ceshat)
+
+```{r, echo=FALSE, out.width="20%"}
+knitr::include_graphics("../docs/logo.png")
+```
 
 ## References
 
