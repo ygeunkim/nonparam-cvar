@@ -545,7 +545,7 @@ mc %>%
       x = xt
     )]
 #---------------------------
-N0 <- 200
+N0 <- 150
 x <- ugarchpath(arch, n.sim = N0)@path
 x <- do.call("cbind", x)[, -3]
 colnames(x) <- c("sigma", "garch")
@@ -576,47 +576,87 @@ mc_test <-
 test_err <- function(band) {
   mc %>% 
     .[,
-      .(pred = wdkll_ces(yt ~ xt, data = .SD, nw_h = band, h0 = band / 10) %>% 
+      .(pred_ces = wdkll_ces(yt ~ xt, data = .SD, nw_h = band, h0 = band / 10) %>% 
           predict(mc_test$xt),
+        pred_wnw = wnw_ces(yt ~ xt, data = .SD, nw_h = band, h0 = band / 10) %>% 
+          predict(mc_test$xt, nw = TRUE),
         ces = mc_test$true_ces),
       by = mc] %>% 
     .[,
-      abs_err := abs(ces - pred)] %>% 
+      `:=`(
+        abs_err_ces = abs(ces - pred_ces),
+        abs_err_wnw = abs(ces - pred_wnw)
+      )] %>% 
     .[,
-      .(abs_err = mean(abs_err)),
+      .(
+        abs_err_ces = mean(abs_err_ces),
+        abs_err_wnw = mean(abs_err_wnw)
+      ),
       by = mc]
 }
 ```
 
 
 ```{r, include=FALSE, cache=TRUE}
-cl <- parallel::makeCluster(3)
-doParallel::registerDoParallel(cl, cores = 3)
-parallel::clusterEvalQ(cl, c(library(data.table), library(magrittr), library(ceshat)))
-#--------------------------------
 err_tab <- 
-  foreach(h = c(.5, 1, 5), .combine = cbind, .inorder = FALSE) %dopar% {
-    test_err(band = h)[, abs_err]
-  }
-#--------------------------------
-parallel::stopCluster(cl)
+  parallel::mclapply(
+    c(1, 3, 10),
+    function(h) {
+      test_err(h)[,
+                  h := h]
+    },
+    mc.cores = 3
+  ) %>% 
+  rbindlist()
 ```
 
-```{r, echo=FALSE}
+```{r, echo=FALSE, fig.cap="WDKLL versus Nadaraya-Watson"}
 err_tab %>% 
-  as.data.frame() %>% 
-  mutate(mc = paste0("s", 1:n())) %>% 
-  pivot_longer(
-    -mc, 
-    names_to = "bandwidth",
-    names_pattern = "result\\.?(.)"
-  ) %>% 
-  mutate(
-    bandwidth = parse_integer(bandwidth)
-  ) %>% 
-  ggplot(aes(x = bandwidth, y = value, group = bandwidth)) +
-  geom_boxplot()
+  melt(id.vars = c("mc", "h")) %>% 
+  ggplot() +
+  geom_boxplot(aes(x = factor(h), y = value, fill = variable)) +
+  labs(
+    x = "Bandwidth",
+    y = "MADE"
+  ) +
+  scale_fill_discrete(
+    name = "Methods",
+    label = c("WDKLL", "NW")
+  ) +
+  theme(
+    legend.position = "bottom"
+  )
 ```
+
+
+<!-- ```{r, include=FALSE, cache=TRUE} -->
+<!-- cl <- parallel::makeCluster(3) -->
+<!-- doParallel::registerDoParallel(cl, cores = 3) -->
+<!-- parallel::clusterEvalQ(cl, c(library(data.table), library(magrittr), library(ceshat))) -->
+<!-- #-------------------------------- -->
+<!-- err_tab <-  -->
+<!--   foreach(h = c(.5, 1, 5), .combine = cbind, .inorder = FALSE) %dopar% { -->
+<!--     test_err(band = h)[, abs_err] -->
+<!--   } -->
+<!-- #-------------------------------- -->
+<!-- parallel::stopCluster(cl) -->
+<!-- ``` -->
+
+<!-- ```{r, echo=FALSE} -->
+<!-- err_tab %>%  -->
+<!--   as.data.frame() %>%  -->
+<!--   mutate(mc = paste0("s", 1:n())) %>%  -->
+<!--   pivot_longer( -->
+<!--     -mc,  -->
+<!--     names_to = "bandwidth", -->
+<!--     names_pattern = "result\\.?(.)" -->
+<!--   ) %>%  -->
+<!--   mutate( -->
+<!--     bandwidth = parse_integer(bandwidth) -->
+<!--   ) %>%  -->
+<!--   ggplot(aes(x = bandwidth, y = value, group = bandwidth)) + -->
+<!--   geom_boxplot() -->
+<!-- ``` -->
 
 
 
