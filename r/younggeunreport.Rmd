@@ -1,6 +1,6 @@
 ---
-title: "Conditional Expected Shortfall"
-subtitle: "Nonparametric Estimation"
+title: "Review on Nonparametric Estimation of Financial Risk"
+subtitle: "Nonparametric Estimation of Conditional VaR and Expected Shortfall"
 author:
   - Young-geun Kim:
       email: dudrms33@g.skku.edu
@@ -14,16 +14,22 @@ date: "`r format(Sys.time(), '%d %b, %Y')`"
 bibliography: "../docs/nonparam.bib"
 biblio-style: "apalike"
 link-citations: true
+abstract: "Value at Risk (VaR) is one of many risk measures for financial assets. Expected shortfall is the other one. I investigate nonparametric estimation methods concerning to these two. Especially, I consider conditional information such as exogenous variable or past observed returns. Thus, our problem becomes estimating the conditional VaR (CVaR) and conditional expected shortfall (CES). It is widely known that local linear fitting involves in linear smoother. In this local linear scheme, we replace the smoother with weighted nadaraya watson kernel. This will estimate the conditional probability densitiy. Given this estimator, we call the estimated CVaR and CES by weighted double kernel local linear estimator. It can also be shown that these estimators follow normal distribution asymptotically."
 output: 
   bookdown::pdf_document2:
     toc: no
+    keep_tex: true
     pandoc_args:
       - "--lua-filter=scholarly-metadata.lua"
       - "--lua-filter=author-info-blocks.lua"
 knit:
   (function(inputFile, encoding) {
-    rmarkdown::render(input = inputFile, encoding = encoding, output_dir = "../static/report")
+    rmarkdown::render(input = inputFile, params = "ask", encoding = encoding, output_dir = "../static/report")
   })
+params:
+  printcode:
+    label: "Display code:"
+    value: FALSE
 header-includes:
   - \usepackage{booktabs}
   - \usepackage{longtable}
@@ -64,9 +70,9 @@ knitr::opts_chunk$set(
   collapse = TRUE,
   out.width = "70%",
   fig.align = "center",
+  fig.pos = "H",
   fig.width = 6,
-  fig.asp = .618,
-  fig.pos = "H"
+  fig.asp = .618
   )
 knitr::knit_hooks$set(
   document = function(x) {
@@ -78,6 +84,7 @@ options(kableExtra.latex.load_packages = FALSE)
 pander::panderOptions("digits", 3)
 is_latex <- knitr::opts_knit$get("rmarkdown.pandoc.to") == "latex"
 is_beamer <- knitr::opts_knit$get("rmarkdown.pandoc.to") == "beamer"
+printcode <- params$printcode
 ```
 
 ```{r, message=FALSE, echo=FALSE}
@@ -102,5 +109,218 @@ library(youngtool)
 # GARCH
 library(rugarch)
 ```
+
+# Introduction
+
+## Concepts of Financial Risk
+
+Consider any loss distribution. See Figure \@ref(fig:lossdist). This is the probability distribution of given time horizon. Value at risk (VaR) is the quantile for the right tail probability.
+
+```{r lossdist, echo=FALSE, fig.cap="Loss Distribution - Can the financial institution still be in business after a catastrophic event?"}
+tibble(
+  x = seq(-3, 3, by = .01),
+  y = dnorm(x),
+  VaR = x >= qnorm(.05)
+) %>% 
+  ggplot(aes(x = x)) +
+  geom_path(aes(y = y)) +
+  geom_ribbon(aes(ymin = 0, ymax = y, fill = VaR), show.legend = FALSE, alpha = .7) +
+  scale_fill_manual(values = c("TRUE" = gg_hcl(1), "FALSE" = NA)) +
+  theme_minimal() +
+  theme(
+    text = element_blank(),
+    axis.ticks = element_blank()
+  )
+```
+
+Why do economists care about this kind of measures? Both financial institutions and regulatory commitee should analyze the risk of their interesting portfolio. @Tsay:2010aa interprets this in the two viewpoint. For financial institutions, VaR can be read as maximal loss of a financial position during a given time period for a given probability. It leads to meaning the measre of loss under normal market conditions. For regulartory committe, on the other hand, it can be read as minimal loss under extraordinary market circumstances.
+
+As we can see in the Figure \@ref(fig:lossdist), VaR is defined using the probability distribution of loss. Let $p$ be the right tail probability, the red area in the figure. Let $l$ be the time horizon, let $L(l)$ be the loss function of the asset from $t$ to $t + l$, and let $F_l$ be the cdf of $L(l)$. Then
+
+\begin{equation}
+  p = P \left[ L(l) \ge VaR \right]
+  (\#eq:vardef)
+\end{equation}
+
+```{r lossquantile, echo=FALSE, fig.cap="CDF of Loss"}
+tibble(
+  x = seq(-3, 3, length.out = 1001),
+  y = pnorm(x),
+  quant = y >= .05
+) %>% 
+  ggplot(aes(x, y, colour = quant)) +
+  geom_line(show.legend = FALSE) +
+  scale_colour_manual(values = c("TRUE" = gg_hcl(1), "FALSE" = "black")) +
+  scale_y_continuous(breaks = c(0, .05, 1)) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_blank(),
+    axis.title = element_blank()
+  )
+```
+
+See Figure \@ref(fig:lossquantile). VaR can be computed by finding the $p$-th quantile.
+
+\begin{equation}
+  VaR = \inf \left\{ x \mathpunct{:} F_l(x) \ge 1 - p \right\}
+  (\#eq:varquant)
+\end{equation}
+
+## Calculating VaR
+
+There are many ways to get VaR in parametric way. Equation \@ref(eq:varquant) shows that VaR is the quantile in each time horizon. It is natural to employ quantile regression to get this quantile value.
+
+
+This report consists of three parts. In Section \@ref(background), we covered basic concepts about CVaR and CES. In Section \@ref(nonparam), I reviewed the paper [@cai:2008aa] briefly. Theoretical parts were mostly skipped. In Section \@ref(experiment), we applied the method in both simulation setting and real data.
+
+
+# Background {#background}
+
+## Expected Shortfall
+
+The reason why many authors only cover these two value-at-risk or expected shortfall that I will explain. Value at risk is famous and its concept is simple. In market, however, sometimes two portfolios can be merged. When this happens, the risk measure should not be greater than the sum of each. This is called subadditivity. VaR does not satistfy this property. It is possible for VaR to underestimate the actual loss. Expected loss is the one satisfying the condition. Expected shortfall is defined by the expected value of loss function if the VaR is exceeded.
+
+\begin{equation}
+  ES \defn E \left[ L(l) \mid L(l) \ge VaR \right]
+  (\#eq:esdef)
+\end{equation}
+
+## Return
+
+We prefer to use log return data. Let $\{ P_t \}$ be the price series. Then the log return is defined by $\{ Y_t \defn \ln \frac{P_t}{P_{t - 1}} \}$. Loss occurs when the return $\{ P_t - P_{t - 1} \}$ are negative, so we should use the negative returns or negative log returns.
+
+Consider Taylor expansion for this log function. For any $x_0 > 0$,
+
+\begin{equation}
+  \ln x \approx \ln x_0 + \frac{1}{x_0}(x - x_0)
+\end{equation}
+
+Write $x = x_2$, $x_0 = x_1$. Then
+
+\begin{equation}
+  \ln \frac{x_2}{x_1} \approx \frac{x_2}{x_1} - 1 = \frac{x_2 - x_1}{x_1}
+  (\#eq:logpercent)
+\end{equation}
+
+Observe that the log return approximates to the change rate. @cai:2008aa used the following value in a real example part.
+
+$$-100 Y_{t + 1} = -100 \ln \frac{P_{t + 1}}{P_t}$$
+
+which approximates to percentage loss.
+
+## Conditional Information
+
+In econometrics, conditional information are always researchers' interests. For example, we are interested in the exogenous variables like economic or market variables. When we look at return data, we can condition past observed returns.
+
+Let $\{ Y_t \}$ be stationary log returns and let $\{ X_t \}$ be conditional information series.
+
+```{definition, condvar, name = "Conditional Value-at-Risk"}
+Let $F(y \mid x)$ be the conditional cdf of $Y_t$ given $X_t = x$ and let $S(y \mid x) \defn 1 - F(y \mid x)$. Then Conditional VaR is
+
+$$\nu_p(x) \defn S^{-1}(p \mid x)$$
+```
+
+When formulating the conditional expected shortfall, we just add the term $X_t = x$ in Equation \@ref(eq:esdef). Let $B \equiv \left\{ \omega \mathpunct{:} Y_t(\omega) \mid X_t = x \ge \nu_p(x) \right\} \in \mathcal{B}$. Then
+
+\begin{equation}
+  \begin{split}
+    \mu_p(x) & = E \left[ Y_t \mid Y_t \ge \nu_p(x), X_t = x \right] \\
+    & = \frac{1}{P(B)} \int_{B} Y_t dP \\
+    & = \frac{1}{P\left( Y_t \ge \nu_p(x) \mid X_t = x \right)} \int_{\nu_p(x)}^\infty y f(y \mid x) dy \\
+    & = \frac{1}{p} \int_{\nu_p(x)}^\infty y f(y \mid x) dy
+  \end{split}
+  (\#eq:cesformul)
+\end{equation}
+
+
+# Nonparametric Estimation {#nonparam}
+
+The workflow of estimating is very simple. It uses the formulation of each CVaR and CES. Just put estimating notation in Equation \@ref(eq:cesformul).
+
+\begin{equation}
+  \hat\mu_p(x) = \frac{1}{p} \int_{\hat\nu_p(x)}^\infty y \hat{f}(y \mid x) dy
+  (\#eq:ceshat)
+\end{equation}
+
+Observe $\hat\mu_p(x)$ and $\hat{f}(y \mid x)$. After estimating these two, we will plugin the above integration and get the result. THen we can summarize the prcess as follows.
+
+1. Estimate the conditional pdf $\hat{f}(y \mid x)$.
+2. Estimate the conditional cdf $\hat{f}(y \mid x)$.
+3. Invert the conditional cdf, and get $\hat\nu_p(x)$.
+4. Plug-in, and get $\hat\mu_p(x)$.
+
+## Double Kernel Local Linear
+
+Consider any symmetric kernel $K_h(\cdot)$. Then by Taylor expansion,
+
+\begin{equation}
+  \begin{split}
+    E [ K_{h_0}(y - Y_t) \mid X_t = x ] & = K_{h_0} \ast f_{y \mid x} (y) \\
+    & = f(y \mid x) + \frac{h_0^2}{2} \mu_2(K) f^{(2)}(y \mid x) + o(h_0^2)
+  \end{split}
+  (\#eq:convolution)
+\end{equation}
+
+where $\mu_j(K) = \int_{\R}u^j K(u) du$. Thus, we now have a smoothing problem
+
+\begin{equation}
+  f(y \mid x) \approx E \left[ K_{h_0}(y - Y_t) \mid X_t = x \right]
+  (\#eq:smoothing)
+\end{equation}
+
+Different with the other usual smoothing setting, the response becomes $Y_t^{\ast}(y) \equiv K_{h_0}(y - Y_t)$. Given this, implement local linear least squares.
+
+\begin{equation}
+  \hat{f}(y \mid x) = \argmin_{\alpha(x), \beta(x)} \sum_{t = 1}^n W_h (x - X_t) \left[ Y_t^{\ast}(y) - \alpha(x) - \beta(x) (X_t - x) \right]^2
+  (\#eq:doublell)
+\end{equation}
+
+This is called double local linear in that the problem involves in the two kernel, $K_{h_0}$ and $W_h$. Recall that the local linear estimate is equivalent to the weighted least squares. Let $\mathbf{Y}_y^{\ast} = \left( Y_1(y), \ldots, Y_n(y) \right)^T \in \R^n$, let $\mathbf{b}_x(x_t) \defn (1, x_t - x)^T \in \R^2$, let $\mathbf{b}_x(x) = \mathbf{e}_1 \defn (1, 0)^T$, let $X_x \defn \left( \mathbf{b}_x(x_i)^T \right) \in \R^{n \times 2}$, and let $W_x \defn diag(W_h(x - X_j)) \in \R^{n \times n}$. Then the local linear solution is given by $\hat{f}_{ll} = \hat\alpha$,
+
+\begin{equation}
+  \begin{split}
+    \hat{f}_{ll}(y \mid x) & = \mathbf{e}_1^T (X_x^T W_x X_x)^{-1} X_x^T W_x \mathbf{Y}_y^{\ast} \\
+    & = \mathbf{l}(x)^T \mathbf{Y}_y^{\ast} \\
+    & \equiv \sum_{t = 1}^n l_t(x) Y_t^{\ast}(y)
+  \end{split}
+  (\#eq:llsolution)
+\end{equation}
+
+@cai:2008aa provides the exact form of each element by matrix calculation in the paper. This linear form of pdf easily gives its cdf. The conditional cdf can be calculated by
+
+\begin{equation*}
+  \begin{split}
+    \hat{F}_{ll}(y \mid x) & = \int_\infty^y \hat{f}_{ll}(y \mid x) dy \\
+    & = \sum_{t = 1}^n l_t(x) G_{h_0}(y - Y_t)
+  \end{split}
+\end{equation*}
+
+where $G(\cdot)$ is the cdf of $K(\cdot)$. Since it is cdf, so it must be $\hat{F}_{ll} \in [0, 1]$ and monotone increasing. Double local linear, however, does not guarantee these properties.
+
+## Weighted Nadaraya Watson
+
+Since the above estimator cannot give desirable cdf to us, we consider another method, weighted nadaraya watson.
+
+## Weighted Double Kerenl Local Linear
+
+## Asymptotic Normality
+
+
+# Experiments {#experiment}
+
+## Simulation
+
+## Data Analysis
+
+
+# Conclusion
+
+## Discussion
+
+\newpage
+
+# References {-}
+
+
 
 
