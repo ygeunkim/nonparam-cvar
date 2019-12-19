@@ -98,22 +98,6 @@
 \newcommand{\defn}{\mathpunct{:}=}
 \DeclareMathOperator*{\argmin}{argmin}
 \DeclareMathOperator*{\argmax}{argmax}
-% https://github.com/rstudio/rmarkdown/issues/337
-\let\rmarkdownfootnote\footnote%
-\def\footnote{\protect\rmarkdownfootnote}
-
-% https://github.com/rstudio/rmarkdown/pull/252
-\usepackage{titling}
-\setlength{\droptitle}{-2em}
-
-\pretitle{\vspace{\droptitle}\centering\huge}
-\posttitle{\par}
-
-\preauthor{\centering\large\emph}
-\postauthor{\par}
-
-\predate{\centering\large\emph}
-\postdate{\par}
 \newlength{\cslhangindent}
 \setlength{\cslhangindent}{1.5em}
 \newenvironment{cslreferences}%
@@ -130,7 +114,7 @@
 \makeatother
 \subtitle{Nonparametric Estimation of Conditional VaR and Expected Shortfall}
 \author{Young-geun Kim\textsuperscript{2,1,*}}
-\date{19 Dec, 2019}
+\date{20 Dec, 2019}
 
 \usepackage{amsthm}
 \newtheorem{theorem}{Theorem}[section]
@@ -221,6 +205,8 @@ The reason why many authors only cover these two value-at-risk or expected short
   \label{eq:esdef}
 \end{equation}
 
+In other words, while VaR cares the maximal loss in the right tail probability part, saying \(0.95\), ES cares average loss in the remaining part, \(0.05\).
+
 \hypertarget{return}{%
 \subsection{Return}\label{return}}
 
@@ -280,7 +266,7 @@ The workflow of estimating is very simple. It uses the formulation of each CVaR 
   \label{eq:ceshat}
 \end{equation}
 
-Observe \(\hat\mu_p(x)\) and \(\hat{f}(y \mid x)\). After estimating these two, we will plugin the above integration and get the result. THen we can summarize the prcess as follows.
+Observe \(\hat\mu_p(x)\) and \(\hat{f}(y \mid x)\). After estimating these two, we will plug the above integration and get the result. THen we can summarize the prcess as follows.
 
 \begin{enumerate}
 \def\labelenumi{\arabic{enumi}.}
@@ -292,7 +278,7 @@ Observe \(\hat\mu_p(x)\) and \(\hat{f}(y \mid x)\). After estimating these two, 
 \item
   Invert the conditional cdf, and get \(\hat\nu_p(x)\).
 \item
-  Plug-in, and get \(\hat\mu_p(x)\).
+  Plugging, and get \(\hat\mu_p(x)\).
 \end{enumerate}
 
 \hypertarget{double-kernel-local-linear}{%
@@ -333,27 +319,145 @@ This is called double local linear in that the problem involves in the two kerne
   \label{eq:llsolution}
 \end{equation}
 
-Cai and Wang (\protect\hyperlink{ref-cai:2008aa}{2008}) provides the exact form of each element by matrix calculation in the paper. This linear form of pdf easily gives its cdf. The conditional cdf can be calculated by
+Cai and Wang (\protect\hyperlink{ref-cai:2008aa}{2008}) provides the exact form of each element by matrix calculation in the paper. This linear form of pdf easily gives its cdf. This LL estimator has some good properties such as differentiability. The conditional cdf can be calculated by
 
-\begin{equation*}
+\begin{equation}
   \begin{split}
     \hat{F}_{ll}(y \mid x) & = \int_\infty^y \hat{f}_{ll}(y \mid x) dy \\
     & = \sum_{t = 1}^n l_t(x) G_{h_0}(y - Y_t)
   \end{split}
-\end{equation*}
+  \label{eq:llcdf}
+\end{equation}
 
 where \(G(\cdot)\) is the cdf of \(K(\cdot)\). Since it is cdf, so it must be \(\hat{F}_{ll} \in [0, 1]\) and monotone increasing. Double local linear, however, does not guarantee these properties.
 
 \hypertarget{weighted-nadaraya-watson}{%
 \subsection{Weighted Nadaraya Watson}\label{weighted-nadaraya-watson}}
 
-Since the above estimator cannot give desirable cdf to us, we consider another method, weighted nadaraya watson.
+Since the above estimator cannot give a desirable cdf to us, we consider another method, weighted nadaraya watson suggested by Cai (\protect\hyperlink{ref-cai2001weighted}{2001}). The form is similar to the nadaraya watson estimator.
+
+\begin{equation}
+  \hat{F}_{NW}(y \mid x)  = \sum_{t = 1}^n W_{c, t}(x, \lambda) I(Y_t \le y)
+  \label{eq:wnw}
+\end{equation}
+
+where the WNW weights given by
+
+\begin{equation}
+  W_{c,t}(x, h) = \frac{p_t(x) W_h (x - X_t)}{\sum\limits_{i = 1}^n p_i(x) W_h (x - X_i)}
+  \label{eq:wnwkernel}
+\end{equation}
+
+The term ``weighted'' is due to the weight for each kernel. \(\{ p_t(x) \}\) is chosen by
+
+\begin{equation}
+  p_t(x) = \frac{1}{n \left[ 1 + \lambda(X_t - x) W_h (x - X_i) \right]} \ge 0
+  \label{eq:wnwpt}
+\end{equation}
+
+We should find \(\lambda\) maximizing the empirical log likelihood function
+
+\begin{equation}
+  L_n(\lambda) = - \sum_{t = 1}^n \ln \left[ 1 + \lambda(X_t - x) W_h(x - X_i) \right]
+  \label{eq:emplike}
+\end{equation}
+
+Cai (\protect\hyperlink{ref-cai2001weighted}{2001}) recommended employing Newton-Raphson to find it.
 
 \hypertarget{weighted-double-kerenl-local-linear}{%
 \subsection{Weighted Double Kerenl Local Linear}\label{weighted-double-kerenl-local-linear}}
 
+Weighted Nadaraya Watson estimator for conditional cdf (Equation \eqref{eq:wnw}) can fill the defect of local linear (Equation \eqref{eq:llcdf}). In Equation \eqref{eq:llsolution}, Cai and Wang (\protect\hyperlink{ref-cai:2008aa}{2008}) can replace the linear smoother with WNW weights. This is called the weighted double kernel local linear estimator.
+
+\begin{equation}
+  \hat{f}_{cai}(y \mid x) = \sum_{t = 1}^n W_{c,t}(x, h) Y_t^{\ast}(y)
+  \label{eq:wdkllpdf}
+\end{equation}
+
+It proceeds in a similar way that the the conditional cdf can be estimated by
+
+\begin{equation}
+  \hat{F}_{cai}(y \mid x) = \sum_{t = 1}^n W_{c,t}(x, h) G_{h_0}(y - Y_t)
+  \label{eq:wdkllcdf}
+\end{equation}
+
+The next step is estimating \(\hat\nu_p(x)\) and \(\hat\mu_p(x)\) one by one. Let \(\hat{S}_{cai}(y \mid x) = 1 - \hat{F}_{cai}(y \mid x)\). By inverting this function, we can get the CVaR function.
+
+\begin{equation}
+  \hat\nu_p^{(cai)}(x) = \hat{S}_{cai}^{-1}(p \mid x)
+  \label{eq:wdkllcvar}
+\end{equation}
+
+When inverting it, I used Equation \eqref{eq:varquant}. Finally, we plug \(\hat\nu_p(x)\) and \(\hat{f}_{cai}(y \mid x)\) into Equation \eqref{eq:ceshat}. Then
+
+\begin{equation}
+  \hat\mu_p(x) = \frac{1}{p} \sum_{t = 1}^n W_{c,t}(x, h) \left[ Y_t \bar{G}_{h_0} (\hat\nu_p(x) - Y_t) + h G_{1, h_0}(\hat\nu_p(x) - Y_t) \right]
+  \label{eq:wdkllces}
+\end{equation}
+
+where \(\bar{G}(u) = 1 - G(u)\) and \(G_1(u) = \int_u^\infty v K(v) dv\).
+
 \hypertarget{asymptotic-normality}{%
 \subsection{Asymptotic Normality}\label{asymptotic-normality}}
+
+Cai and Wang (\protect\hyperlink{ref-cai:2008aa}{2008}) has shown that each estimator follows Normal distribution at both interior and boundary point. Since the formulation is quite complicated, I provide Monte Carlo simulation setting here. Consider AR(1)-GARCH(0,1) model as in the paper.\footnote{Authors wrote that the model was ARCH(1), but many textbooks including Tsay (\protect\hyperlink{ref-Tsay:2010aa}{2010}) specify that model as GARCH(0,1).} This setting continues to the next simulation section.
+
+\BeginKnitrBlock{example}[AR(1)-GARCH(0,1) Model]
+\protect\hypertarget{exm:garch}{}{\label{exm:garch} \iffalse (AR(1)-GARCH(0,1) Model) \fi{} }With \(X_t = Y_{t - 1}\),
+
+\[
+\begin{cases}
+  Y_t = 0.01 + 0.62 X_t + \sigma_t \epsilon_t \\
+  \sigma_t^2 = 0.15 + 0.65 \sigma_{t - 1}^2 \\
+  \epsilon_t \sim N(0, 1)
+\end{cases}
+\]
+\EndKnitrBlock{example}
+
+Monte Carlo Samples were generate by the following procedure.
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  For fixed \(x\),
+\item
+  Generate GARCH(0, 1): \((\sigma_t, \epsilon_t)\)
+\item
+  Generate \(Y_t\) using AR(1) for each \(X_t = Y_{t - 1}\)
+\item
+  AR(1): \(Y_t = 0.01 + 0.62 Y_{t - 1} + \sigma_t \epsilon_t\)
+\end{enumerate}
+
+\hypertarget{interior}{%
+\subsubsection{Interior}\label{interior}}
+
+\begin{figure}[H]
+
+{\centering \includegraphics[width=0.7\linewidth]{/Users/younggeun/Documents/GitHub/nonparam-cvar/static/report/younggeunreport_files/figure-latex/wdkllnormal-1} 
+
+}
+
+\caption{Asymptotic normality for $\hat\mu_p(x)$ in interior point}\label{fig:wdkllnormal}
+\end{figure}
+
+In Figure \ref{fig:wdkllnormal}, we can see that \(\hat\mu_p(x)\) follows the normal distribution approximately at \(x = -0.734\).
+
+\hypertarget{boundary}{%
+\subsubsection{Boundary}\label{boundary}}
+
+Cai and Wang (\protect\hyperlink{ref-cai:2008aa}{2008}) proved at the left boundary point \(x = ch\), \(0 < c < 1\).
+
+\begin{figure}[H]
+
+{\centering \includegraphics[width=0.7\linewidth]{/Users/younggeun/Documents/GitHub/nonparam-cvar/static/report/younggeunreport_files/figure-latex/wdkllboundary-1} 
+
+}
+
+\caption{Asymptotic normality for $\hat\mu_p(x)$ at left boundary}\label{fig:wdkllboundary}
+\end{figure}
+
+Similarly, Figure \ref{fig:wdkllboundary} presents asymptotic normality of WDKLL estimator of CES at the left boundary point.
 
 \hypertarget{experiment}{%
 \section{Experiments}\label{experiment}}
@@ -361,8 +465,103 @@ Since the above estimator cannot give desirable cdf to us, we consider another m
 \hypertarget{simulation}{%
 \subsection{Simulation}\label{simulation}}
 
+Now we try another simulation under Example \ref{exm:garch}. This model implies the true CVaR and CES. Since \(\epsilon_t \sim N(0, 1)\),
+
+\begin{equation}
+  \sigma_t \epsilon_t \sim N(0, \sigma_t^2)
+  \label{eq:garchterm}
+\end{equation}
+
+By construction,
+
+\begin{equation}
+  Y_t \mid X_t \sim N \left( 0.01 + 0.62 X_t, \sigma_t^2 \right)
+  \label{eq:arterm}
+\end{equation}
+
+Given this conditional pdf, we can compute cdf using statistical package such as \href{https://www.r-project.org}{\texttt{R}}. The procedure after this is same with before. In this Monte Carlo simulation setting, we want to simulate the expected prediction error between the true \(\mu_p(x)\) and \(\hat\mu_p(x)\). Absolute loss was used following Cai and Wang (\protect\hyperlink{ref-cai:2008aa}{2008}). Figure \ref{fig:mctest} shows the structure of MC simulation. After training each model using each MC sample, we test it in the independent test set. Individual samples and a test set are generated as follows.
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  For fixed \(x_t\) (pre-determined grid points)
+\item
+  Generate GARCH(0, 1): \((\sigma_t, \epsilon_t)\)
+\item
+  Generate \(Y_t\) using AR(1) for each \(X_t = Y_{t - 1}\)
+\item
+  AR(1): \(Y_t = 0.01 + 0.62 Y_{t - 1} + \sigma_t \epsilon_t\)
+\end{enumerate}
+
+\begin{figure}[H]
+
+{\centering \includegraphics[width=0.7\linewidth]{../docs/mc_epe} 
+
+}
+
+\caption{Simulating Expected prediction error}\label{fig:mctest}
+\end{figure}
+
+See Figure \ref{fig:wdkllnw}. WDKLL estimator produces much less expected prediction error in each bandwidth than usual Nadaraya Watson estimator.
+
+\begin{figure}[H]
+
+{\centering \includegraphics[width=0.7\linewidth]{/Users/younggeun/Documents/GitHub/nonparam-cvar/static/report/younggeunreport_files/figure-latex/wdkllnw-1} 
+
+}
+
+\caption{WDKLL versus Nadaraya-Watson}\label{fig:wdkllnw}
+\end{figure}
+
 \hypertarget{data-analysis}{%
 \subsection{Data Analysis}\label{data-analysis}}
+
+We can implement CVaR and CES to measure risk of Bitcoin. We analyze \(607\) daily prices of bitcoin from \(2018-04-05\) to \(2019-12-12\).
+
+\begin{figure}[H]
+
+{\centering \includegraphics[width=0.7\linewidth]{/Users/younggeun/Documents/GitHub/nonparam-cvar/static/report/younggeunreport_files/figure-latex/bitprice-1} 
+
+}
+
+\caption{Bitcoin price in USD}\label{fig:bitprice}
+\end{figure}
+
+We use \(y_t \mathpunct{:}=- 100 \ln \frac{P_t}{P_{t - 1}}\) as daily return to approximate percentage loss.
+
+\begin{figure}[H]
+
+{\centering \includegraphics[width=0.7\linewidth]{/Users/younggeun/Documents/GitHub/nonparam-cvar/static/report/younggeunreport_files/figure-latex/bitreturn-1} 
+
+}
+
+\caption{Daily return of bitcoin price}\label{fig:bitreturn}
+\end{figure}
+
+Figure \ref{fig:bitreturn} is the daily return \(\{ y_t \}\). We now try to estimate using this \(y_t\) given the first lagged variable \(x_t = y_{t - 1}\).
+
+Look at Figure \ref{fig:cvarcoin}. It is the plot of CVaR for each conditional information \(x_t = y_{t - 1}\). CVaR which is the maximal loss under \(0.95\) probability is increasing given the last day return. How about the other \(0.05\) case?
+
+\begin{figure}[H]
+
+{\centering \includegraphics[width=0.7\linewidth]{/Users/younggeun/Documents/GitHub/nonparam-cvar/static/report/younggeunreport_files/figure-latex/cvarcoin-1} 
+
+}
+
+\caption{Conditional Value-at-Risk given each lagged variable value}\label{fig:cvarcoin}
+\end{figure}
+
+See Figure \ref{fig:cescoin}. This is the conditional expected shortfall. Recall that we are dealing with negative returns. Thus, positive \(x_t\) means the loss. We can expecte that its price is more likely to fall if there were a loss within the last day than if there was a same amount of positive return.\footnote{This interpretation have followed the one by Cai and Wang (\protect\hyperlink{ref-cai:2008aa}{2008})}
+
+\begin{figure}[H]
+
+{\centering \includegraphics[width=0.7\linewidth]{/Users/younggeun/Documents/GitHub/nonparam-cvar/static/report/younggeunreport_files/figure-latex/cescoin-1} 
+
+}
+
+\caption{Conditional Expected Shortfall given each lagged variable value}\label{fig:cescoin}
+\end{figure}
 
 \hypertarget{conclusion}{%
 \section{Conclusion}\label{conclusion}}
@@ -378,6 +577,9 @@ Since the above estimator cannot give desirable cdf to us, we consider another m
 
 \hypertarget{refs}{}
 \begin{cslreferences}
+\leavevmode\hypertarget{ref-cai2001weighted}{}%
+Cai, Zongwu. 2001. ``Weighted Nadaraya--Watson Regression Estimation.'' \emph{Statistics \& Probability Letters} 51 (3): 307--18.
+
 \leavevmode\hypertarget{ref-cai:2008aa}{}%
 Cai, Zongwu, and Xian Wang. 2008. ``Nonparametric estimation of conditional VaR and expected shortfall.'' \emph{Journal of Econometrics} 147 (1): 120--30. \url{https://doi.org/10.1016/j.jeconom.2008.09.005}.
 

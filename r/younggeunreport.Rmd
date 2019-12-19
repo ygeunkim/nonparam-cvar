@@ -107,6 +107,7 @@ library(ceshat)
 # devtools::install_github("ygeunkim/youngtool")
 library(youngtool)
 # GARCH
+library(fGarch)
 library(rugarch)
 ```
 
@@ -144,7 +145,7 @@ As we can see in the Figure \@ref(fig:lossdist), VaR is defined using the probab
 
 ```{r lossquantile, echo=FALSE, fig.cap="CDF of Loss"}
 tibble(
-  x = seq(-3, 3, length.out = 1001),
+  x = seq(-3, 3, by = .01),
   y = pnorm(x),
   quant = y >= .05
 ) %>% 
@@ -184,6 +185,8 @@ The reason why many authors only cover these two value-at-risk or expected short
   ES \defn E \left[ L(l) \mid L(l) \ge VaR \right]
   (\#eq:esdef)
 \end{equation}
+
+In other words, while VaR cares the maximal loss in the right tail probability part, saying $0.95$, ES cares average loss in the remaining part, $0.05$.
 
 ## Return
 
@@ -242,12 +245,12 @@ The workflow of estimating is very simple. It uses the formulation of each CVaR 
   (\#eq:ceshat)
 \end{equation}
 
-Observe $\hat\mu_p(x)$ and $\hat{f}(y \mid x)$. After estimating these two, we will plugin the above integration and get the result. THen we can summarize the prcess as follows.
+Observe $\hat\mu_p(x)$ and $\hat{f}(y \mid x)$. After estimating these two, we will plug the above integration and get the result. THen we can summarize the prcess as follows.
 
 1. Estimate the conditional pdf $\hat{f}(y \mid x)$.
 2. Estimate the conditional cdf $\hat{f}(y \mid x)$.
 3. Invert the conditional cdf, and get $\hat\nu_p(x)$.
-4. Plug-in, and get $\hat\mu_p(x)$.
+4. Plugging, and get $\hat\mu_p(x)$.
 
 ## Double Kernel Local Linear
 
@@ -286,31 +289,432 @@ This is called double local linear in that the problem involves in the two kerne
   (\#eq:llsolution)
 \end{equation}
 
-@cai:2008aa provides the exact form of each element by matrix calculation in the paper. This linear form of pdf easily gives its cdf. The conditional cdf can be calculated by
+@cai:2008aa provides the exact form of each element by matrix calculation in the paper. This linear form of pdf easily gives its cdf. This LL estimator has some good properties such as differentiability. The conditional cdf can be calculated by
 
-\begin{equation*}
+\begin{equation}
   \begin{split}
     \hat{F}_{ll}(y \mid x) & = \int_\infty^y \hat{f}_{ll}(y \mid x) dy \\
     & = \sum_{t = 1}^n l_t(x) G_{h_0}(y - Y_t)
   \end{split}
-\end{equation*}
+  (\#eq:llcdf)
+\end{equation}
 
 where $G(\cdot)$ is the cdf of $K(\cdot)$. Since it is cdf, so it must be $\hat{F}_{ll} \in [0, 1]$ and monotone increasing. Double local linear, however, does not guarantee these properties.
 
 ## Weighted Nadaraya Watson
 
-Since the above estimator cannot give desirable cdf to us, we consider another method, weighted nadaraya watson.
+Since the above estimator cannot give a desirable cdf to us, we consider another method, weighted nadaraya watson suggested by @cai2001weighted. The form is similar to the nadaraya watson estimator.
+
+\begin{equation}
+  \hat{F}_{NW}(y \mid x)  = \sum_{t = 1}^n W_{c, t}(x, \lambda) I(Y_t \le y)
+  (\#eq:wnw)
+\end{equation}
+
+where the WNW weights given by
+
+\begin{equation}
+  W_{c,t}(x, h) = \frac{p_t(x) W_h (x - X_t)}{\sum\limits_{i = 1}^n p_i(x) W_h (x - X_i)}
+  (\#eq:wnwkernel)
+\end{equation}
+
+The term "weighted" is due to the weight for each kernel. $\{ p_t(x) \}$ is chosen by
+
+\begin{equation}
+  p_t(x) = \frac{1}{n \left[ 1 + \lambda(X_t - x) W_h (x - X_i) \right]} \ge 0
+  (\#eq:wnwpt)
+\end{equation}
+
+We should find $\lambda$ maximizing the empirical log likelihood function
+
+\begin{equation}
+  L_n(\lambda) = - \sum_{t = 1}^n \ln \left[ 1 + \lambda(X_t - x) W_h(x - X_i) \right]
+  (\#eq:emplike)
+\end{equation}
+
+@cai2001weighted recommended employing Newton-Raphson to find it.
 
 ## Weighted Double Kerenl Local Linear
 
+Weighted Nadaraya Watson estimator for conditional cdf (Equation \@ref(eq:wnw)) can fill the defect of local linear (Equation \@ref(eq:llcdf)). In Equation \@ref(eq:llsolution), @cai:2008aa can replace the linear smoother with WNW weights. This is called the weighted double kernel local linear estimator.
+
+\begin{equation}
+  \hat{f}_{cai}(y \mid x) = \sum_{t = 1}^n W_{c,t}(x, h) Y_t^{\ast}(y)
+  (\#eq:wdkllpdf)
+\end{equation}
+
+It proceeds in a similar way that the the conditional cdf can be estimated by
+
+\begin{equation}
+  \hat{F}_{cai}(y \mid x) = \sum_{t = 1}^n W_{c,t}(x, h) G_{h_0}(y - Y_t)
+  (\#eq:wdkllcdf)
+\end{equation}
+
+The next step is estimating $\hat\nu_p(x)$ and $\hat\mu_p(x)$ one by one. Let $\hat{S}_{cai}(y \mid x) = 1 - \hat{F}_{cai}(y \mid x)$. By inverting this function, we can get the CVaR function.
+
+\begin{equation}
+  \hat\nu_p^{(cai)}(x) = \hat{S}_{cai}^{-1}(p \mid x)
+  (\#eq:wdkllcvar)
+\end{equation}
+
+When inverting it, I used Equation \@ref(eq:varquant). Finally, we plug $\hat\nu_p(x)$ and $\hat{f}_{cai}(y \mid x)$ into Equation \@ref(eq:ceshat). Then
+
+\begin{equation}
+  \hat\mu_p(x) = \frac{1}{p} \sum_{t = 1}^n W_{c,t}(x, h) \left[ Y_t \bar{G}_{h_0} (\hat\nu_p(x) - Y_t) + h G_{1, h_0}(\hat\nu_p(x) - Y_t) \right]
+  (\#eq:wdkllces)
+\end{equation}
+
+where $\bar{G}(u) = 1 - G(u)$ and $G_1(u) = \int_u^\infty  v K(v)  dv$.
+
 ## Asymptotic Normality
 
+@cai:2008aa has shown that each estimator follows Normal distribution at both interior and boundary point. Since the formulation is quite complicated, I provide Monte Carlo simulation setting here. Consider AR(1)-GARCH(0,1) model as in the paper.^[Authors wrote that the model was ARCH(1), but many textbooks including @Tsay:2010aa specify that model as GARCH(0,1).] This setting continues to the next simulation section.
+
+```{r, echo=printcode}
+ar0 <- .01
+ar1 <- .62
+omega <- .15
+alp <- 0
+bet <- .65
+```
+
+```{example, garch, name = "AR(1)-GARCH(0,1) Model"}
+With $X_t = Y_{t - 1}$,
+
+$$
+\begin{cases}
+  Y_t = 0.01 + 0.62 X_t + \sigma_t \epsilon_t \\
+  \sigma_t^2 = 0.15 + 0.65 \sigma_{t - 1}^2 \\
+  \epsilon_t \sim N(0, 1)
+\end{cases}
+$$
+```
+
+```{r, echo=printcode, cache=TRUE}
+garch_sim <- function(n, cond, ar_mu = .01, ar = .62) {
+  garch_spec <- 
+    garchSpec(
+      cond.dist = "norm",
+      model = list(
+        omega = .15, alpha = 0, beta = .65
+      )
+    )
+  tibble(garch = garchSim(garch_spec, n = n) %>% as.numeric()) %>% 
+    mutate(
+      x = cond,
+      y = ar_mu + ar * x + garch
+    ) %>% 
+    select(y) %>% # to use youngtool (experimental stage)
+    pull()
+}
+#--------------------------
+cond_sim <- function(n, m, xcond) {
+  mc_data(garch_sim, N = n, M = m, cond = xcond) %>% 
+    .[,
+      xcond := xcond] %>% 
+    .[]
+}
+#---------------------------
+x <- runif(1, -1, 0)
+mc <- cond_sim(200, 500, x)
+```
+
+Monte Carlo Samples were generate by the following procedure.
+
+1. For fixed $x$,
+2. Generate GARCH(0, 1): $(\sigma_t, \epsilon_t)$
+3. Generate $Y_t$ using AR(1) for each $X_t = Y_{t - 1}$
+4. AR(1): $Y_t = 0.01 + 0.62 Y_{t - 1} + \sigma_t \epsilon_t$
+
+### Interior
+
+```{r, echo=printcode, cache=TRUE}
+CES <- 
+  mc[,
+     .(mu =
+         wdkll_ces(x ~ xcond, .SD) %>% 
+         predict(newx = unique(xcond))),
+     by = mc]
+```
+
+```{r wdkllnormal, echo=printcode, fig.cap="Asymptotic normality for $\\hat\\mu_p(x)$ in interior point"}
+CES %>% 
+  ggplot(aes(x = mu)) +
+  geom_histogram(alpha = .7, binwidth = .01) +
+  xlab("Conditional Expected Shortfall")
+```
+
+In Figure \@ref(fig:wdkllnormal), we can see that $\hat\mu_p(x)$ follows the normal distribution approximately at $x = `r x`$.
+
+### Boundary
+
+@cai:2008aa proved at the left boundary point $x = ch$, $0 < c < 1$.
+
+```{r, echo=printcode, cache=TRUE}
+bound_c <- runif(1) * 200^(-4/5)
+mc <- cond_sim(200, 500, bound_c)
+```
+
+```{r, echo=printcode, cache=TRUE}
+CES2 <- 
+  mc[,
+     .(mu =
+         wdkll_ces(x ~ xcond, .SD) %>% 
+         predict(newx = unique(xcond))),
+     by = mc]
+```
+
+```{r wdkllboundary, echo=printcode, fig.cap="Asymptotic normality for $\\hat\\mu_p(x)$ at left boundary"}
+CES2 %>% 
+  ggplot(aes(x = mu)) +
+  geom_histogram(alpha = .7, binwidth = .01) +
+  xlab("Conditional Expected Shortfall")
+```
+
+Similarly, Figure \@ref(fig:wdkllboundary) presents asymptotic normality of WDKLL estimator of CES at the left boundary point.
 
 # Experiments {#experiment}
 
 ## Simulation
 
+Now we try another simulation under Example \@ref(exm:garch). This model implies the true CVaR and CES. Since $\epsilon_t \sim N(0, 1)$,
+
+\begin{equation}
+  \sigma_t \epsilon_t \sim N(0, \sigma_t^2)
+  (\#eq:garchterm)
+\end{equation}
+
+By construction,
+
+\begin{equation}
+  Y_t \mid X_t \sim N \left( `r ar0` + `r ar1` X_t, \sigma_t^2 \right)
+  (\#eq:arterm)
+\end{equation}
+
+Given this conditional pdf, we can compute cdf using statistical package such as [`R`](https://www.r-project.org). The procedure after this is same with before. In this Monte Carlo simulation setting, we want to simulate the expected prediction error between the true $\mu_p(x)$ and $\hat\mu_p(x)$. Absolute loss was used following @cai:2008aa. Figure \@ref(fig:mctest) shows the structure of MC simulation. After training each model using each MC sample, we test it in the independent test set. Individual samples and a test set are generated as follows.
+
+1. For fixed $x_t$ (pre-determined grid points)
+2. Generate GARCH(0, 1): $(\sigma_t, \epsilon_t)$
+3. Generate $Y_t$ using AR(1) for each $X_t = Y_{t - 1}$
+4. AR(1): $Y_t = 0.01 + 0.62 Y_{t - 1} + \sigma_t \epsilon_t$
+
+```{r, echo=printcode}
+arch <- 
+  ugarchspec(
+    fixed.pars = c("omega" = omega, "alpha1" = alp, "beta1" = bet),
+    mean.model = list(armaOrder = c(0, 0), include.mean = FALSE)
+  )
+```
+
+```{r mctest, echo=FALSE, fig.cap="Simulating Expected prediction error"}
+knitr::include_graphics("../docs/mc_epe.png")
+```
+
+```{r, echo=printcode, cache=TRUE}
+N <- 100
+M <- 20
+xcond <- seq_len(N) / (2 * N)
+mc <- 
+  lapply(
+    1:M,
+    function(i) {
+      X <- ugarchpath(arch, n.sim = N)@path
+      X <- do.call("cbind", X)[,-3]
+      colnames(X) <- c("sigma", "garch")
+      X %>% 
+        data.table() %>% 
+        .[,
+          mc := paste0("s", i)]
+    }
+  ) %>% 
+  rbindlist() %>% 
+  .[,
+    xt := xcond,
+    by = mc] %>% 
+  .[,
+    yt := ar0 + ar1 * xt + garch]
+# true ces------------------------------------------
+sig <- unique(mc$sigma)
+mc %>% 
+  .[,
+    true_ces := plugin_ces(
+      pdf = function(y, x) dnorm(y, mean = ar0 + ar1 * x, sd = sig),
+      cdf = function(y, x) pnorm(y, mean = ar0 + ar1 * x, sd = sig),
+      x = xt,
+      lower = -1,
+      upper = 1
+    )] %>% 
+  .[,
+    true_cvar := invert_cvar(
+      cdf = function(y, x) pnorm(y, mean = ar0 + ar1 * x, sd = sig),
+      x = xt
+    )]
+# test set------------------------------------------
+N0 <- 150
+x <- ugarchpath(arch, n.sim = N0)@path
+x <- do.call("cbind", x)[, -3]
+colnames(x) <- c("sigma", "garch")
+mc_test <- 
+  x %>% 
+  data.table() %>% 
+  .[,
+    xt := seq_len(N0) / (2 * N0) + .5] %>% 
+  .[,
+    yt := ar0 + ar1 * xt + garch] %>% 
+  .[,
+    true_ces := plugin_ces(
+      pdf = function(y, x) dnorm(y, mean = ar0 + ar1 * x, sd = sig),
+      cdf = function(y, x) pnorm(y, mean = ar0 + ar1 * x, sd = sig),
+      x = xt,
+      lower = -1,
+      upper = 1
+    )] %>% 
+  .[,
+    true_cvar := invert_cvar(
+      cdf = function(y, x) pnorm(y, mean = ar0 + ar1 * x, sd = sig),
+      x = xt
+    )]
+```
+
+```{r, echo=printcode, cache=TRUE}
+test_err <- function(band) {
+  mc %>% 
+    .[,
+      .(pred_ces = wdkll_ces(yt ~ xt, data = .SD, nw_h = band, h0 = band / 10) %>% 
+          predict(mc_test$xt),
+        pred_wnw = wnw_ces(yt ~ xt, data = .SD, nw_h = band, h0 = band / 10) %>% 
+          predict(mc_test$xt, nw = TRUE),
+        ces = mc_test$true_ces),
+      by = mc] %>% 
+    .[,
+      `:=`(
+        abs_err_ces = abs(ces - pred_ces),
+        abs_err_wnw = abs(ces - pred_wnw)
+      )] %>% 
+    .[,
+      .(
+        abs_err_ces = mean(abs_err_ces),
+        abs_err_wnw = mean(abs_err_wnw)
+      ),
+      by = mc]
+}
+```
+
+```{r, echo=printcode, cache=TRUE}
+err_tab <- 
+  parallel::mclapply(
+    c(1, 3, 10),
+    function(h) {
+      test_err(h)[,
+                  h := h]
+    },
+    mc.cores = 3
+  ) %>% 
+  rbindlist()
+```
+
+See Figure \@ref(fig:wdkllnw). WDKLL estimator produces much less expected prediction error in each bandwidth than usual Nadaraya Watson estimator.
+
+```{r wdkllnw, echo=printcode, fig.cap="WDKLL versus Nadaraya-Watson"}
+err_tab %>% 
+  melt(id.vars = c("mc", "h")) %>% 
+  ggplot() +
+  geom_boxplot(aes(x = factor(h), y = value, fill = variable)) +
+  labs(
+    x = "Bandwidth",
+    y = "MADE"
+  ) +
+  scale_fill_discrete(
+    name = "Methods",
+    label = c("WDKLL", "NW")
+  ) +
+  theme(
+    legend.position = "bottom"
+  )
+```
+
+
 ## Data Analysis
+
+```{r, message=FALSE, echo=printcode}
+coin <-
+  read_csv("../data/btc.csv") %>%
+  select(Date, price = `24h Open (USD)`)
+```
+
+We can implement CVaR and CES to measure risk of Bitcoin. We analyze $`r nrow(coin)`$ daily prices of bitcoin from $`r coin %>% select(Date) %>% first() %>% pull()`$ to $`r coin %>% select(Date) %>% last() %>% pull()`$.
+
+```{r bitprice, echo=FALSE, fig.cap="Bitcoin price in USD", cache=TRUE}
+coin %>% 
+  ggplot(aes(Date, price)) +
+  geom_line() +
+  scale_x_date() +
+  ylab("Price") +
+  theme_minimal()
+```
+
+We use $y_t \defn - 100 \ln \frac{P_t}{P_{t - 1}}$ as daily return to approximate percentage loss.
+
+```{r, echo=printcode}
+coin_return <- 
+  coin %>% 
+  mutate(
+    yt = -log(price / dplyr::lag(price)) * 100,
+    xt = dplyr::lag(yt)
+  ) %>% 
+  dplyr::filter(
+    Date >= "2018-06-01",
+    Date < "2019-12-01"
+  )
+```
+
+```{r bitreturn, echo=FALSE, fig.cap="Daily return of bitcoin price"}
+coin_return %>%
+  ggplot(aes(x = Date, y = yt)) +
+  geom_line() +
+  scale_x_date() +
+  ylab("Daily return") +
+  theme_minimal()
+```
+
+Figure \@ref(fig:bitreturn) is the daily return $\{ y_t \}$. We now try to estimate using this $y_t$ given the first lagged variable $x_t = y_{t - 1}$.
+
+```{r, echo=FALSE}
+coin_cvar <- wdkll_cvar(yt ~ xt, data = coin_return, nw_h = 1, h0 = .1, lower_invert = -5, upper_invert = 5)
+```
+
+```{r, echo=printcode, cache=TRUE}
+cvar_pred <- 
+  tibble(x = seq(-1, 1, by = .1)) %>% 
+  mutate(CVaR = predict(coin_cvar, x))
+```
+
+Look at Figure \@ref(fig:cvarcoin). It is the plot of CVaR for each conditional information $x_t = y_{t - 1}$. CVaR which is the maximal loss under $0.95$ probability is increasing given the last day return. How about the other $0.05$ case?
+
+```{r cvarcoin, echo=FALSE, fig.cap="Conditional Value-at-Risk given each lagged variable value"}
+cvar_pred %>% 
+  ggplot(aes(x, CVaR)) +
+  geom_path() +
+  theme_minimal()
+```
+
+See Figure \@ref(fig:cescoin). This is the conditional expected shortfall. Recall that we are dealing with negative returns. Thus, positive $x_t$ means the loss. We can expecte that its price is more likely to fall if there were a loss within the last day than if there was a same amount of positive return.^[This interpretation have followed the one by @cai:2008aa]
+
+```{r, echo=FALSE}
+coin_ces <- wdkll_ces(yt ~ xt, data = coin_return, nw_h = 1, h0 = .1, lower_invert = -5, upper_invert = 5)
+```
+
+```{r, echo=printcode, cache=TRUE}
+coin_pred <- 
+  tibble(x = seq(-1.5, 1.5, by = .1)) %>% 
+  mutate(CES = predict(coin_ces, x))
+```
+
+```{r cescoin, echo=FALSE, fig.cap="Conditional Expected Shortfall given each lagged variable value"}
+coin_pred %>% 
+  ggplot(aes(x, CES)) +
+  geom_path() +
+  theme_minimal()
+```
 
 
 # Conclusion

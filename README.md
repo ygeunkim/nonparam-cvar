@@ -29,6 +29,7 @@ There will be two presentations and one report.
 
 1.  [Brief
     slide](https://github.com/ygeunkim/nonparam-cvar/blob/master/static/slides/younggeunslide1.pdf)
-2.  [Final presentation slide: working
-    on](https://github.com/ygeunkim/nonparam-cvar/blob/master/static/slides/younggeunslide2.pdf)
-3.  Report
+2.  [Final presentation
+    slide](https://github.com/ygeunkim/nonparam-cvar/blob/master/static/slides/younggeunslide2.pdf)
+3.  [Final Report: working
+    on](https://github.com/ygeunkim/nonparam-cvar/blob/master/static/report/younggeunreport.pdf)
