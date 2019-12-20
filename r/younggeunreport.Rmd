@@ -14,7 +14,7 @@ date: "`r format(Sys.time(), '%d %b, %Y')`"
 bibliography: "../docs/nonparam.bib"
 biblio-style: "apalike"
 link-citations: true
-abstract: "Value at Risk (VaR) is one of many risk measures for financial assets. Expected shortfall is the other one. I investigate nonparametric estimation methods concerning to these two. Especially, I consider conditional information such as exogenous variable or past observed returns. Thus, our problem becomes estimating the conditional VaR (CVaR) and conditional expected shortfall (CES). It is widely known that local linear fitting involves in linear smoother. In this local linear scheme, we replace the smoother with weighted nadaraya watson kernel. This will estimate the conditional probability densitiy. Given this estimator, we call the estimated CVaR and CES by weighted double kernel local linear estimator. It can also be shown that these estimators follow normal distribution asymptotically."
+abstract: "Value at Risk (VaR) is one of many risk measures for financial assets. Expected shortfall is the other one. I investigate nonparametric estimation methods concerning these two. Mainly, I consider conditional information such as exogenous variables or past observed returns. Thus, our problem becomes estimating the conditional VaR (CVaR) and conditional expected shortfall (CES). It is widely known that local linear fitting involves in linear smoother. In this local linear scheme, we replace the smoother with weighted nadaraya watson kernel. This will estimate the conditional probability density. Given this estimator, we call the estimated CVaR and CES by weighted double kernel local linear estimator. It can also be shown that these estimators follow normal distribution asymptotically. [*R package for this report is provided in links of this text line*.](https://github.com/ygeunkim/ceshat)"
 output: 
   bookdown::pdf_document2:
     toc: no
@@ -134,9 +134,9 @@ tibble(
   )
 ```
 
-Why do economists care about this kind of measures? Both financial institutions and regulatory commitee should analyze the risk of their interesting portfolio. @Tsay:2010aa interprets this in the two viewpoint. For financial institutions, VaR can be read as maximal loss of a financial position during a given time period for a given probability. It leads to meaning the measre of loss under normal market conditions. For regulartory committe, on the other hand, it can be read as minimal loss under extraordinary market circumstances.
+Why do economists care about this kind of measure? Both financial institutions and the regulatory committee should analyze the risk of their impressive portfolio. @Tsay:2010aa interprets this in the two viewpoint. For financial institutions, VaR can be read as a maximal loss of a financial position during a given time horizon for a given probability. It leads to meaning the measure of loss under normal market conditions. For the regulatory committee, on the other hand, it can be read as a minimal loss under extraordinary market circumstances.
 
-As we can see in the Figure \@ref(fig:lossdist), VaR is defined using the probability distribution of loss. Let $p$ be the right tail probability, the red area in the figure. Let $l$ be the time horizon, let $L(l)$ be the loss function of the asset from $t$ to $t + l$, and let $F_l$ be the cdf of $L(l)$. Then
+As we can see in Figure \@ref(fig:lossdist), VaR is defined using the probability distribution of loss. Let $p$ be the right tail probability, the red area in the figure. Let $l$ be the time horizon, let $L(l)$ be the loss function of the asset from $t$ to $t + l$, and let $F_l$ be the CDF of $L(l)$. Then
 
 \begin{equation}
   p = P \left[ L(l) \ge VaR \right]
@@ -169,24 +169,24 @@ See Figure \@ref(fig:lossquantile). VaR can be computed by finding the $p$-th qu
 
 ## Calculating VaR
 
-There are many ways to get VaR in parametric way. Equation \@ref(eq:varquant) shows that VaR is the quantile in each time horizon. It is natural to employ quantile regression to get this quantile value.
+There are many ways to get VaR in a parametric way. Equation \@ref(eq:varquant) shows that VaR is the quantile in each time horizon. It is natural to employ quantile regression to get this quantile value.
 
 
-This report consists of three parts. In Section \@ref(background), we covered basic concepts about CVaR and CES. In Section \@ref(nonparam), I reviewed the paper [@cai:2008aa] briefly. Theoretical parts were mostly skipped. In Section \@ref(experiment), we applied the method in both simulation setting and real data.
+This report consists of three parts. In Section \@ref(background), we covered basic concepts about CVaR and CES. In Section \@ref(nonparam), I reviewed the paper [@cai:2008aa] briefly. Theoretical parts were mostly skipped. In Section \@ref(experiment), we applied the method in both simulation settings and real data.
 
 
 # Background {#background}
 
 ## Expected Shortfall
 
-The reason why many authors only cover these two value-at-risk or expected shortfall that I will explain. Value at risk is famous and its concept is simple. In market, however, sometimes two portfolios can be merged. When this happens, the risk measure should not be greater than the sum of each. This is called subadditivity. VaR does not satistfy this property. It is possible for VaR to underestimate the actual loss. Expected loss is the one satisfying the condition. Expected shortfall is defined by the expected value of loss function if the VaR is exceeded.
+Many authors only cover the value-at-risk or expected shortfall in their papers. Value at risk is famous, and its concept is simple. In the market, two portfolios can be merged, sometimes. When this happens, the risk measure should not be higher than the sum of each, which is called the subadditivity. VaR does not satisfy this property, so it can underestimate the actual loss. The expected shortfall as the other risk measure, however,  satisfies the condition. The expected shortfall is defined by the expected value of loss function if the VaR is exceeded.
 
 \begin{equation}
   ES \defn E \left[ L(l) \mid L(l) \ge VaR \right]
   (\#eq:esdef)
 \end{equation}
 
-In other words, while VaR cares the maximal loss in the right tail probability part, saying $0.95$, ES cares average loss in the remaining part, $0.05$.
+In other words, while VaR cares about the maximal loss in the right tail probability part, saying $0.95$, ES cares average loss in the remaining part, $0.05$.
 
 ## Return
 
@@ -213,7 +213,7 @@ which approximates to percentage loss.
 
 ## Conditional Information
 
-In econometrics, conditional information are always researchers' interests. For example, we are interested in the exogenous variables like economic or market variables. When we look at return data, we can condition past observed returns.
+In econometrics, conditional information is always the researchers' interests. For example, we are interested in the exogenous variables like economic or market variables. When we look at return data, we can condition past observed returns.
 
 Let $\{ Y_t \}$ be stationary log returns and let $\{ X_t \}$ be conditional information series.
 
@@ -289,7 +289,7 @@ This is called double local linear in that the problem involves in the two kerne
   (\#eq:llsolution)
 \end{equation}
 
-@cai:2008aa provides the exact form of each element by matrix calculation in the paper. This linear form of pdf easily gives its cdf. This LL estimator has some good properties such as differentiability. The conditional cdf can be calculated by
+@cai:2008aa provides the exact form of each element by matrix calculation in the paper. This linear form of pdf easily gives its CDF. This LL estimator has some good properties, such as differentiability. The conditional CDF can be calculated by
 
 \begin{equation}
   \begin{split}
@@ -299,7 +299,7 @@ This is called double local linear in that the problem involves in the two kerne
   (\#eq:llcdf)
 \end{equation}
 
-where $G(\cdot)$ is the cdf of $K(\cdot)$. Since it is cdf, so it must be $\hat{F}_{ll} \in [0, 1]$ and monotone increasing. Double local linear, however, does not guarantee these properties.
+where $G(\cdot)$ is the CDF of $K(\cdot)$. Since it is CDF, so it must be $\hat{F}_{ll} \in [0, 1]$ and monotone increasing. Double local linear, however, does not guarantee these properties.
 
 ## Weighted Nadaraya Watson
 
@@ -342,7 +342,7 @@ Weighted Nadaraya Watson estimator for conditional cdf (Equation \@ref(eq:wnw)) 
   (\#eq:wdkllpdf)
 \end{equation}
 
-It proceeds in a similar way that the the conditional cdf can be estimated by
+It proceeds in a same way that the conditional cdf can be estimated by
 
 \begin{equation}
   \hat{F}_{cai}(y \mid x) = \sum_{t = 1}^n W_{c,t}(x, h) G_{h_0}(y - Y_t)
@@ -367,7 +367,7 @@ where $\bar{G}(u) = 1 - G(u)$ and $G_1(u) = \int_u^\infty  v K(v)  dv$.
 
 ## Asymptotic Normality
 
-@cai:2008aa has shown that each estimator follows Normal distribution at both interior and boundary point. Since the formulation is quite complicated, I provide Monte Carlo simulation setting here. Consider AR(1)-GARCH(0,1) model as in the paper.^[Authors wrote that the model was ARCH(1), but many textbooks including @Tsay:2010aa specify that model as GARCH(0,1).] This setting continues to the next simulation section.
+@cai:2008aa has shown that each estimator follows Normal distribution at both interior and boundary point. Since the formulation is quite complicated, I provide the Monte Carlo simulation setting here. Consider AR(1)-GARCH(0,1) model as in the paper.^[Authors wrote that the model was ARCH(1), but many textbooks including @Tsay:2010aa specify that model as GARCH(0,1).] This setting continues to the next simulation section.
 
 ```{r, echo=printcode}
 ar0 <- .01
@@ -490,7 +490,7 @@ By construction,
   (\#eq:arterm)
 \end{equation}
 
-Given this conditional pdf, we can compute cdf using statistical package such as [`R`](https://www.r-project.org). The procedure after this is same with before. In this Monte Carlo simulation setting, we want to simulate the expected prediction error between the true $\mu_p(x)$ and $\hat\mu_p(x)$. Absolute loss was used following @cai:2008aa. Figure \@ref(fig:mctest) shows the structure of MC simulation. After training each model using each MC sample, we test it in the independent test set. Individual samples and a test set are generated as follows.
+Given this conditional pdf, we can compute cdf using statistical packages such as [`R`](https://www.r-project.org). The procedure after this is the same as before. In this Monte Carlo simulation setting, we want to simulate the expected prediction error between the true $\mu_p(x)$ and $\hat\mu_p(x)$. Absolute loss was used following @cai:2008aa. Figure \@ref(fig:mctest) shows the structure of MC simulation. After training each model using each MC sample, we test it in the independent test set. Individual samples and a test set are generated as follows.
 
 1. For fixed $x_t$ (pre-determined grid points)
 2. Generate GARCH(0, 1): $(\sigma_t, \epsilon_t)$
@@ -635,6 +635,8 @@ err_tab %>%
 
 ## Data Analysis
 
+### Data Description
+
 ```{r, message=FALSE, echo=printcode}
 coin <-
   read_csv("../data/btc.csv") %>%
@@ -678,7 +680,9 @@ coin_return %>%
 
 Figure \@ref(fig:bitreturn) is the daily return $\{ y_t \}$. We now try to estimate using this $y_t$ given the first lagged variable $x_t = y_{t - 1}$.
 
-```{r, echo=FALSE}
+### Conditional Value-at-Risk
+
+```{r, echo=printcode}
 coin_cvar <- wdkll_cvar(yt ~ xt, data = coin_return, nw_h = 1, h0 = .1, lower_invert = -5, upper_invert = 5)
 ```
 
@@ -697,29 +701,121 @@ cvar_pred %>%
   theme_minimal()
 ```
 
-See Figure \@ref(fig:cescoin). This is the conditional expected shortfall. Recall that we are dealing with negative returns. Thus, positive $x_t$ means the loss. We can expecte that its price is more likely to fall if there were a loss within the last day than if there was a same amount of positive return.^[This interpretation have followed the one by @cai:2008aa]
+As in @cai:2008aa, we can state in the viewpoint of financial institution or the regulatory committee. Figure \@ref(fig:cvarcoin) presents that a maximal loss rate in usual case is increasing as loss of the last day increases. Investors can think this asset as very risky. See Figure \@ref(fig:cvardji). It is CVaR of Dow Jones Industrials (DJI) index in the same period. One of stock is not always increasing.
 
-```{r, echo=FALSE}
-coin_ces <- wdkll_ces(yt ~ xt, data = coin_return, nw_h = 1, h0 = .1, lower_invert = -5, upper_invert = 5)
+```{r, message=FALSE, echo=printcode}
+dji <-
+  read_csv("../data/dji.csv") %>%
+  select(Date, price = Open)
+#---------------------------------------
+dji_return <- 
+  dji %>% 
+  mutate(
+    yt = -log(price / dplyr::lag(price)) * 100,
+    xt = dplyr::lag(yt)
+  ) %>% 
+  dplyr::filter(
+    Date >= "2018-06-01",
+    Date < "2019-12-01"
+  )
+```
+
+```{r, echo=printcode}
+dji_fit <- wdkll_cvar(yt ~ xt, data = dji_return, nw_h = 1, h0 = .1, lower_invert = -5, upper_invert = 5)
 ```
 
 ```{r, echo=printcode, cache=TRUE}
-coin_pred <- 
+dji_cvar <- 
   tibble(x = seq(-1.5, 1.5, by = .1)) %>% 
-  mutate(CES = predict(coin_ces, x))
+  mutate(CVaR = predict(dji_fit, x))
 ```
 
-```{r cescoin, echo=FALSE, fig.cap="Conditional Expected Shortfall given each lagged variable value"}
-coin_pred %>% 
-  ggplot(aes(x, CES)) +
+```{r cvardji, echo=FALSE, fig.cap="Conditional Value-at-Risk of Dow Jones Industrial Index"}
+dji_cvar %>% 
+  ggplot(aes(x, CVaR)) +
   geom_path() +
   theme_minimal()
 ```
 
+### Conditional Expected Shortfall
+
+How about CES? See Figure \@ref(fig:cesfit). This is the same plot for CES. The pattern is quite different with before. It shows a U-shape. Recall that we are dealing with negative returns. Thus, positive $x_t$ means the loss. We can expect that its price is more likely to fall if there were a loss within the last day than if there was the same amount of positive return.^[This interpretation have followed the one by @cai:2008aa]
+
+As mentioned in Section \@ref(background), the expected shortfall deals with the extreme part that VaR does not - when VaR is exceeded. As the average loss when VaR is surpassed given conditional information, CES can show the difference of actual loss more precisely.
+
+```{r, echo=printcode}
+coin_ces <- wdkll_ces(yt ~ xt, data = coin_return, nw_h = 1, h0 = .1, lower_invert = -5, upper_invert = 5)
+```
+
+<!-- ```{r, echo=printcode, cache=TRUE} -->
+<!-- coin_pred <-  -->
+<!--   tibble(x = seq(-1.5, 1.5, by = .1)) %>%  -->
+<!--   mutate(CES = predict(coin_ces, x)) -->
+<!-- ``` -->
+
+<!-- ```{r cescoin, echo=FALSE, fig.cap="Conditional Expected Shortfall given each lagged variable value"} -->
+<!-- coin_pred %>%  -->
+<!--   ggplot(aes(x, CES)) + -->
+<!--   geom_path() + -->
+<!--   theme_minimal() -->
+<!-- ``` -->
+
+```{r, echo=printcode}
+dji_ces <- wdkll_ces(yt ~ xt, data = dji_return, nw_h = 1, h0 = .1, lower_invert = -5, upper_invert = 5)
+```
+
+<!-- ```{r, echo=printcode, cache=TRUE} -->
+<!-- dji_pred <-  -->
+<!--   tibble(x = seq(-1.5, 1.5, by = .1)) %>%  -->
+<!--   mutate(CES = predict(dji_ces, x)) -->
+<!-- ``` -->
+
+```{r, echo=printcode, cache=TRUE}
+ces_pred <- 
+  tibble(x = seq(-1.5, 1.5, by = .1)) %>% 
+  mutate(
+    coin_pred = predict(coin_ces, x),
+    dji_pred = predict(dji_ces, x)
+  )
+```
+
+```{r cesfit, echo=printcode, fig.cap="Conditional Expected Shortfall of Bitcoin and DJI"}
+ces_pred %>% 
+  pivot_longer(ends_with("pred"), names_to = "pred", values_to = "CES") %>% 
+  ggplot(aes(x, CES, colour = pred)) +
+  geom_path() +
+  theme_minimal() +
+  scale_colour_discrete(
+    name = "Data",
+    labels = c("Bitcoin", "DJI")
+  ) +
+  theme(legend.position = "bottom")
+```
+
+As we can see in Figure \@ref(fig:cesfit), the risk of Bitcoin is larger than of DJI overall. This suggests the similar results to of CVaR that Bitcoin is danger asset to invest, and should be regulated.
 
 # Conclusion
 
+This report have reviewd WDKLL estimator designed by @cai:2008aa. Its final goal is conditional expected shortfall. To estimate it, we have to estimate conditional PDF, conditional CDF, and conditional value-at-risk. To make the estimator reasonable - for instance, PDF is differentiable, CDF is in its range and monotone increasing - authors combine double kernel local linear and weighted nadaraya watson estimate methods.
+
+Nonparametric method has its own advantages like low bias. Moreover, the estimator seems to improve boundary problem in nonparametric literature using asymptotic normality. It gives superiority in test error to the other estimators such as nadaraya watson.
+
 ## Discussion
+
+Bandwidth selection in this kind of kernel smoothing is important factor. @cai:2008aa, however, only provided an ad-hoc process using nonparametric AIC [@cai2000application], defined by
+
+\begin{equation}
+  AIC_{C}(h,p) \defn \ln (RSS) + \frac{n + tr(S)}{n - \left[ tr(S) + 2 \right]}
+  (\#eq:nonparamaic)
+\end{equation}
+
+where $RSS = \mathbf{Y}^T(I - S)^T (I - S) \mathbf{Y}$ and $S$ is the linear smoother.
+
+Since this is linear smoother, it might be possible to think about various criteria for selection.
+
+## Supplement
+
+For this report, I have built an `R` package due to the lack of the original code. It is in [github.com/ygeunkim/ceshat](https://github.com/ygeunkim/ceshat). This report also has its own code, and it can be shown in the Github repository: [github.com/ygeunkim/nonparam-cvar](https://github.com/ygeunkim/nonparam-cvar).
 
 \newpage
 
