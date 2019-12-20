@@ -22,14 +22,14 @@ output:
     pandoc_args:
       - "--lua-filter=scholarly-metadata.lua"
       - "--lua-filter=author-info-blocks.lua"
-knit:
-  (function(inputFile, encoding) {
-    rmarkdown::render(input = inputFile, params = "ask", encoding = encoding, output_dir = "../static/report")
-  })
 params:
   printcode:
     label: "Display code:"
     value: FALSE
+knit:
+  (function(inputFile, encoding) {
+    rmarkdown::render(input = inputFile, params = "ask", encoding = encoding, output_dir = "../static/report/report_text")
+  })
 header-includes:
   - \usepackage{booktabs}
   - \usepackage{longtable}
